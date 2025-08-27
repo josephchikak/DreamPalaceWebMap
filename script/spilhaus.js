@@ -1,7 +1,4 @@
-proj4.defs(
-  "ESRI:54099",
-  "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +units=m +datum=WGS84 +no_defs"
-);
+proj4.defs("ESRI:54009", "+proj=moll +lon_0=0 +x_0=0 +y_0=0 ");
 const minx = -16857702.71589949;
 const miny = -17212325.962645144;
 const maxx = 17289853.05215329;
@@ -14,13 +11,13 @@ const resolutions = [
   26677.77794379123588, // z=3
 ];
 
-const spilhausCRS = new L.Proj.CRS("ESRI:54099", proj4.defs("ESRI:54099"), {
+const spilhausCRS = new L.Proj.CRS("ESRI:54009", proj4.defs("ESRI:54009"), {
   origin: [minx, maxy], // 左上角 (minx, maxy)
   resolutions, // 与 XML 完全一致
   bounds: L.bounds([minx, miny], [maxx, maxy]), // 限制平移
 });
 
-const map_spilhaus = L.map("map", {
+const map_spilhaus = L.map("mapSpilhaus", {
   crs: spilhausCRS,
   center: [0, 0],
   zoom: 2,
@@ -52,7 +49,7 @@ fetch("assets/Brazil.geojson", { cache: "no-cache" })
     return r.json();
   })
   .then((geojson) => {
-    geojson.crs = { type: "name", properties: { name: "ESRI:54099" } };
+    geojson.crs = { type: "name", properties: { name: "ESRI:54009" } };
 
     const polyLayer = new L.Proj.GeoJSON(geojson, {
       style: {

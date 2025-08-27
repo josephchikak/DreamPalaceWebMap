@@ -8,7 +8,6 @@ class WebMapApp {
   }
 
   initialize() {
-    this.mapManager.registerCRS();
     this.mapManager.buildCRS();
     this.mapManager.createSpilhaus();
     this.mapManager.addSpilhausTiles();
@@ -25,8 +24,9 @@ class MapManager {
     this.containerSpilhaus = "mapSpilhaus";
     this.containerWgs = "mapWgs";
     // projection const
-    this.projCode = "ESRI:54099";
+    this.metersProjection = null;
     this.spilhausCRS = null;
+    this.mapBounds = null;
     // map const
     this.mapSpilhaus = null;
     this.mapWgs = null;
@@ -50,7 +50,7 @@ class MapManager {
       Senegal: [14.781868, -17.375992],
       South_Africa: [-28.898819, -7.063372],
       United_Kingdom: [54.091472, -3.224016],
-      United_States_of_America: [41.59938, -105.308336],
+      US: [41.59938, -105.308336],
     };
     this.spilhausCountryFiles = [
       "Brazil",
@@ -62,15 +62,9 @@ class MapManager {
       "Nigeria",
       "Senegal",
       "South_Africa",
-      // need to add US and UK
+      "United_Kingdom",
+      "US",
     ];
-  }
-
-  registerCRS() {
-    proj4.defs(
-      "ESRI:54099",
-      "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +units=m +datum=WGS84 +no_defs"
-    );
   }
 
   buildCRS() {
@@ -86,15 +80,33 @@ class MapManager {
       26677.77794379123588, // z=3
     ];
 
-    this.spilhausCRS = new L.Proj.CRS(
-      this.projCode,
-      proj4.defs(this.projCode),
-      {
-        origin: [minx, maxy], // 左上角 (minx, maxy)
-        resolutions, // 与 XML 完全一致
-        bounds: L.bounds([minx, miny], [maxx, maxy]), // 限制平移
-      }
-    );
+    this.metersProjection = {
+      project: (latlng) => L.point(latlng.lng, latlng.lat), // [x,y] -> Point(x,y)
+      unproject: (point) => L.latLng(point.y, point.x), // 反变换
+      bounds: L.bounds(L.point(minx, miny), L.point(maxx, maxy)),
+    };
+
+    this.spilhausCRS = L.extend({}, L.CRS.Simple, {
+      projection: this.metersProjection,
+      transformation: new L.Transformation(1, -minx, -1, maxy),
+      scale: (z) => 1 / resolutions[z],
+      zoom: (s) => {
+        const scales = resolutions.map((r) => 1 / r);
+        let best = 0,
+          err = Infinity;
+        for (let i = 0; i < scales.length; i++) {
+          const d = Math.abs(scales[i] - s);
+          if (d < err) {
+            err = d;
+            best = i;
+          }
+        }
+        return best;
+      },
+      infinite: false,
+    });
+
+    this.mapBounds = L.latLngBounds([miny, minx], [maxy, maxx]);
   }
 
   createSpilhaus() {
@@ -105,6 +117,7 @@ class MapManager {
       crs: this.spilhausCRS,
       center: this.spilhausStart.center,
       zoom: this.spilhausStart.zoom,
+      maxBounds: this.mapBounds,
       minZoom: 2,
       maxZoom: 3,
       scrollWheelZoom: "center",
@@ -113,6 +126,19 @@ class MapManager {
       zoomSnap: 1,
       zoomDelta: 1,
       inertia: false,
+    });
+
+    this.mapSpilhaus.fitBounds(this.mapBounds);
+
+    // 调试：看看每级 “世界像素” 和瓦片数
+    this.mapSpilhaus.on("zoomend", () => {
+      const z = this.mapSpilhaus.getZoom();
+      const wb = this.spilhausCRS.getProjectedBounds(z).getSize();
+      console.log(
+        `world px @z=${z}: ${wb.x} x ${wb.y}; tiles ≈ ${Math.ceil(
+          wb.x / 256
+        )} x ${Math.ceil(wb.y / 256)}`
+      );
     });
   }
 
@@ -124,8 +150,14 @@ class MapManager {
       maxZoom: 3,
       minNativeZoom: 3,
       maxNativeZoom: 3,
+      scrollWheelZoom: "center",
+      touchZoom: "center",
+      doubleClickZoom: "center",
+      zoomSnap: 1,
+      zoomDelta: 1,
+      inertia: false,
       noWrap: true,
-      updateWhenZooming: true,
+      bounds: this.mapBounds,
       keepBuffer: 2,
     }).addTo(this.mapSpilhaus);
   }
@@ -167,8 +199,9 @@ class MapManager {
           return r.json();
         })
         .then((geojson) => {
-          geojson.crs = { type: "name", properties: { name: this.projCode } };
+          if (geojson.crs) delete geojson.crs;
           const polyLayer = new L.Proj.GeoJSON(geojson, {
+            coordsToLatLng: (c) => L.latLng(c[1], c[0]),
             style,
             interactive: true,
             onEachFeature: (_, layer) => {

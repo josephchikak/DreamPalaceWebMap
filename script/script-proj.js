@@ -1,210 +1,102 @@
-"use strict";
+const minx = -16857702.71589949;
+const miny = -17212325.962645144;
+const maxx = 17289853.05215329;
+const maxy = 16935229.805407636;
 
-// Initialize the map
-// const map = L.map("map").setView([51.505, -0.09], 13);
-
-// L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-//   attribution:
-//     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-// }).addTo(map);
-
-// zoom to specific place clicking on explore dream places link
-// function zoomToPlace() {
-//   map.setView([51.505, -0.09], 13);
-// }
-
-// ReProjection
-
-// Corrected tile URL pattern and configuration
-// proj4.defs(
-//   "EPSG:54099",
-//   "+proj=aea +lat_1=-86 +lat_2=-52 +lat_0=-79 +lon_0=180 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
-// );
-
-// const spilhausCRS = new L.Proj.CRS("EPSG:54099", proj4.defs("EPSG:54099"), {
-//   origin: [-16683169.289447047, 16683169.289447047],
-//   resolutions: [
-//     65168.63003690253, 32584.315018451263, 16292.157509225632,
-//     8146.078754612816, 4073.039377306408, 2036.519688653204, 1018.259844326602,
-//     509.129922163301, 254.5649610816505,
-//   ],
-//   bounds: L.bounds(
-//     [-16683169.289447047, -16683169.289447047],
-//     [16683169.289447045, 16683169.289447045]
-//   ),
-// });
-
-var spilhausCRS = new L.Proj.CRS(
-  "ESRI:54099",
-  "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +units=m +datum=WGS84 +no_defs",
-  {
-    origin: [-27112517.64081454, 17456150.62712629], // ⬅️ top-left of the raster in meters
-    resolutions: [
-      287969.00689997635, // zoom level 0
-      143984.50344998817, // zoom level 1
-      71992.25172499409, // zoom level 2
-      35996.12586249704, // zoom level 3
-    ],
-    bounds: L.bounds(
-      [-27112517.64081454, -19403882.25607068], // bottom-left in meters
-      [18962523.46318168, 17456150.62712629] // top-right in meters
-    ),
-  }
-);
-
-var map_spilhaus = L.map("map", {
-  crs: spilhausCRS,
-  center: [0, 0],
-  minZoom: 0,
-  maxZoom: 3,
-  //dragging: false,
-  //scrollWhenlZoom: false,
-  doubleClickZoom: false,
-  boxZoom: false,
-  keyboard: false,
-  zoomControl: false,
-}).setView([0, -101], 3);
-
-// L.tileLayer("tiles/{z}/{x}/{y}.png", {
-//   tms: true,
-//   tileSize: 256,
-//   minZoom: 0,
-//   maxZoom: 3,
-//   noWrap: true,
-// }).addTo(map_spilhaus);
-
-var sidebar = L.control.sidebar("sidebar", { position: "left" });
-map_spilhaus.addControl(sidebar);
-
-var country_array = [
-  "Brazil",
-  "Burkina Faso",
-  "Cameroon",
-  "Ghana",
-  "Mali",
-  "Mozambique",
-  "Nigeria",
-  "Senegal",
-  "South Africa",
-  "United Kingdom",
-  "United States of America",
+const resolutions = [
+  213422.22355032988708, // z=0  -> world px ~160
+  106711.11177516494354, // z=1  -> ~320
+  53355.55588758247177, // z=2  -> ~640
+  26677.77794379123588, // z=3  -> ~1280 (≈5 tiles)
 ];
 
-// geojson layer
-// proj4.defs(
-//   "ESRI:54099",
-//   "+proj=spilhaus +lat_0=-49.56371678 +lon_0=66.94970198 +azi=40.17823482 +k_0=1.4142135623731 +rot=45 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs"
-// );
+const MetersProjection = {
+  project: (latlng) => L.point(latlng.lng, latlng.lat), // [x,y] -> Point(x,y)
+  unproject: (point) => L.latLng(point.y, point.x), // 反变换
+  bounds: L.bounds(L.point(minx, miny), L.point(maxx, maxy)),
+};
 
-proj4.defs(
-  "ESRI:54099",
-  "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +units=m +datum=WGS84 +no_defs"
-);
+const CRS_Spilhaus = L.extend({}, L.CRS.Simple, {
+  projection: MetersProjection,
+  transformation: new L.Transformation(1, -minx, -1, maxy),
+  scale: (z) => 1 / resolutions[z],
+  zoom: (s) => {
+    const scales = resolutions.map((r) => 1 / r);
+    let best = 0,
+      err = Infinity;
+    for (let i = 0; i < scales.length; i++) {
+      const d = Math.abs(scales[i] - s);
+      if (d < err) {
+        err = d;
+        best = i;
+      }
+    }
+    return best;
+  },
+  infinite: false,
+});
 
-fetch("assets/worldPolygon4326.geojson")
-  .then((response) => {
-    if (!response.ok) throw new Error("geojson loading failed");
-    return response.json();
+const mapBounds = L.latLngBounds([miny, minx], [maxy, maxx]);
+
+const map_spilhaus = L.map("mapSpilhaus", {
+  crs: CRS_Spilhaus,
+  minZoom: 0,
+  maxZoom: 3,
+  maxBounds: mapBounds,
+  maxBoundsViscosity: 1.0,
+});
+
+// 立刻设视图（否则停在 z=0 只要 1 瓦）
+// map_spilhaus.fitBounds(mapBounds);
+
+// gdal2tiles -w leaflet 通常是 XYZ（y 向下）=> 先用 tms:false 试
+const tile = L.tileLayer("tiles8.12/{z}/{x}/{y}.png", {
+  tms: true,
+  tileSize: 256,
+  minZoom: 0,
+  maxZoom: 3,
+  minNativeZoom: 3,
+  maxNativeZoom: 3,
+  scrollWheelZoom: "center",
+  touchZoom: "center",
+  doubleClickZoom: "center",
+  zoomSnap: 1,
+  zoomDelta: 1,
+  inertia: false,
+  noWrap: true,
+  bounds: mapBounds,
+  keepBuffer: 2,
+}).addTo(map_spilhaus);
+
+// 调试：看看实际请求了哪些瓦片
+map_spilhaus.on("zoomend", () => {
+  const z = map_spilhaus.getZoom();
+  const wb = map_spilhaus.options.crs.getProjectedBounds(z).getSize();
+  console.log(`world px @z=${z}:`, wb.x, wb.y);
+});
+tile.on("tileloadstart", (e) => console.log("start", e.coords, e.tile.src));
+tile.on("tileerror", (e) => console.warn("tileerror", e.coords, e.tile.src));
+
+// —— 你的“已是米坐标”的 GeoJSON —— //
+fetch("/assets/ukspilhaus.geojson", { cache: "no-cache" })
+  .then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
   })
-  .then((geojsonData) => {
-    console.log("GeoJSON loaded:", geojsonData);
-    const worldLayer = L.Proj.geoJson(geojsonData, {
-      style: (feature) => {
-        const name = feature.properties.NAME;
-        if (country_array.includes(name)) {
-          return {
-            color: "#e7e3e2ff",
-            weight: 1,
-            fillColor: "rgba(214, 2, 2, 0.4)",
-            fillOpacity: 1,
-          };
-        }
-        return {
-          color: "white",
-          weight: 0,
-          fillColor: "white",
-          fillOpacity: 0,
-        };
+  .then((geojson) => {
+    if (geojson.crs) delete geojson.crs; // 避免误触发跨CRS逻辑
+
+    const layer = L.geoJSON(geojson, {
+      coordsToLatLng: (c) => L.latLng(c[1], c[0]), // [x,y] -> [lat=y,lng=x]
+      style: {
+        color: "#1f2937",
+        weight: 1,
+        fillColor: "#60a5fa",
+        fillOpacity: 0.25,
       },
-      onEachFeature: (feature, layer) => {
-        const name = feature.properties.NAME;
-        // layer.bindPopup(name);
-      },
-    });
-    worldLayer.addTo(map_spilhaus);
+    }).addTo(map_spilhaus);
+
+    const b = layer.getBounds();
+    if (b.isValid())
+      map_spilhaus.fitBounds(b, { maxZoom: 3, padding: [10, 10] });
   });
-console.log(Object.keys(proj4.Proj.projections));
-
-// var world = new L.GeoJSON.AJAX("assets/worldPolygon.geojson", {
-//   style: (feature) => {
-//     const name = feature.properties.NAME;
-//     if (country_array.includes(name)) {
-//       return {
-//         color: "#8F1C06",
-//         weight: 1,
-//         fillColor: "rgba(255,255,255,0)",
-//         fillOpacity: 0,
-//       };
-//     }
-//     return {
-//       color: "white",
-//       weight: 0.4,
-//       fillColor: "gray",
-//       fillOpacity: 0.6,
-//     };
-//   },
-//   onEachFeature: (feature, layer) => {
-//     console.log("Loaded:", feature.properties.NAME);
-//   },
-// }).addTo(map_spilhaus);
-
-// const styleUrl =
-//   "https://tiles.arcgis.com/tiles/jIL9msH9OI208GCb/" +
-//   "arcgis/rest/services/Spilhaus_Ocean_VTP/VectorTileServer/" +
-//   "resources/styles/root.json";
-
-// // Corrected tile URL and configuration
-// L.vectorGrid
-//   .protobuf(
-//     "https://tiles.arcgis.com/tiles/jIL9msH9OI208GCb/" +
-//       "arcgis/rest/services/Spilhaus_Ocean_VTP/VectorTileServer/tile/{z}/{y}/{x}.pbf",
-//     {
-//       tileSize: 512,
-//       maxNativeZoom: 9,
-//       attribution: "© Esri Living Atlas",
-//       vectorTileLayerStyles: {
-//         // Target circle layers and hide them
-//         "1st_order/Country/abbr": {
-//           radius: 0, // Hide circle
-//           opacity: 0, // Make fully transparent
-//         },
-//         "DisputedTerritory/label": {
-//           radius: 0,
-//           opacity: 0,
-//         },
-//         "1st_order/Country/label": {
-//           radius: 0,
-//           opacity: 0,
-//         },
-//         // prettier-ignore
-//         "Marine_Label": {
-//           radius: 0,
-//           opacity: 0,
-//         },
-//         // Add other layers you want to keep visible below
-//         // prettier-ignore
-//         "Rivers_LScale": {
-//           weight: 1,
-//           opacity: 1,
-//           color: "#7D7D7D", // Original river color
-//         },
-//         // prettier-ignore
-//         "Graticule": {
-//           weight: 0.933333,
-//           color: "#CCCCCC", // Original graticule color
-//         },
-//         // Add other necessary layers (roads, boundaries, etc.) here
-//       },
-//     }
-//   )
-//   .addTo(map);
