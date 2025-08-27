@@ -36,11 +36,11 @@ class MapManager {
     this.spilhausTiles = null;
     this.spilhausCountryLayers = [];
     // setveiw
-    this.spilhausStart = { center: [0, -150], zoom: 2 };
+    this.spilhausStart = { center: [0, -13000000], zoom: 2 };
     this.wgsDefaultZoom = 4;
     // country centroid
     this.countryCentroid = {
-      Brazil: [-7.535994, -72.340427],
+      Brazil: [-7.535994, -87.340427],
       Burkina_Faso: [11.726473, -25.308822],
       Cameroon: [5.810411, 0.63166],
       Ghana: [7.678434, -22.749734],
@@ -50,7 +50,7 @@ class MapManager {
       Senegal: [14.781868, -17.375992],
       South_Africa: [-28.898819, -7.063372],
       United_Kingdom: [54.091472, -3.224016],
-      US: [41.59938, -105.308336],
+      US: [41.59938, -125.308336],
     };
     this.spilhausCountryFiles = [
       "Brazil",
@@ -106,7 +106,7 @@ class MapManager {
       infinite: false,
     });
 
-    this.mapBounds = L.latLngBounds([miny, minx], [maxy, maxx]);
+    //this.mapBounds = L.latLngBounds([miny, minx], [maxy, maxx]);
   }
 
   createSpilhaus() {
@@ -128,17 +128,17 @@ class MapManager {
       inertia: false,
     });
 
-    this.mapSpilhaus.fitBounds(this.mapBounds);
+    //this.mapSpilhaus.fitBounds(this.mapBounds);
 
     // 调试：看看每级 “世界像素” 和瓦片数
     this.mapSpilhaus.on("zoomend", () => {
       const z = this.mapSpilhaus.getZoom();
       const wb = this.spilhausCRS.getProjectedBounds(z).getSize();
-      console.log(
-        `world px @z=${z}: ${wb.x} x ${wb.y}; tiles ≈ ${Math.ceil(
-          wb.x / 256
-        )} x ${Math.ceil(wb.y / 256)}`
-      );
+      // console.log(
+      //   `world px @z=${z}: ${wb.x} x ${wb.y}; tiles ≈ ${Math.ceil(
+      //     wb.x / 256
+      //   )} x ${Math.ceil(wb.y / 256)}`
+      // );
     });
   }
 
@@ -172,6 +172,7 @@ class MapManager {
       scrollWheelZoom: true,
       doubleClickZoom: true,
       zoomSnap: 1,
+      zoomControl: false,
     });
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -200,7 +201,7 @@ class MapManager {
         })
         .then((geojson) => {
           if (geojson.crs) delete geojson.crs;
-          const polyLayer = new L.Proj.GeoJSON(geojson, {
+          const polyLayer = new L.GeoJSON(geojson, {
             coordsToLatLng: (c) => L.latLng(c[1], c[0]),
             style,
             interactive: true,
@@ -209,7 +210,7 @@ class MapManager {
                 mouseover: (e) => {
                   e.target.setStyle({ weight: 2, fillOpacity: 0.35 });
                   e.target.bringToFront();
-                  console.log("Mouseover::", e);
+                  //console.log("Mouseover::", e);
                 },
                 mouseout: (e) => {
                   polyLayer.resetStyle(e.target);
@@ -326,6 +327,7 @@ class MapManager {
 class LayerManager {
   constructor(app) {
     this.app = app;
+    this._radioAbort = null;
     this.city_list = [];
     this.country_list = [];
     this.openStreetMap = null;
@@ -406,11 +408,19 @@ class LayerManager {
   }
 
   initStyleRadioWatcher() {
+    if (this._radioAbort) this._radioAbort.abort();
+    this._radioAbort = new AbortController();
+    const sig = this._radioAbort.signal;
+
     document.querySelectorAll('input[name="choosestyle"]').forEach((radio) => {
-      radio.addEventListener("change", () => {
-        console.log("选项变化，重新加载图层");
-        this.reloadPalaceLayer(); // 每次根据 getPointStyleFunction 重新加载
-      });
+      radio.addEventListener(
+        "change",
+        () => {
+          // console.log("选项变化，重新加载图层");
+          this.reloadPalaceLayer(); // 每次根据 getPointStyleFunction 重新加载
+        },
+        { signal: sig }
+      );
     });
   }
 
@@ -458,7 +468,7 @@ class LayerManager {
       // handel when dataquery is shown
       const el = document.querySelector("#data_container");
       const isHidden = el && window.getComputedStyle(el).display === "none";
-      console.log("是否隐藏：", isHidden);
+      //console.log("是否隐藏：", isHidden);
       if (!isHidden) {
         this.app.uiManager.showElement("#explore_container");
       }
@@ -503,7 +513,7 @@ class LayerManager {
       // handel when dataquery is shown
       const el = document.querySelector("#data_container");
       const isHidden = el && window.getComputedStyle(el).display === "none";
-      console.log("是否隐藏：", isHidden);
+      //console.log("是否隐藏：", isHidden);
       if (!isHidden) this.app.uiManager.showElement("#explore_container");
       this.app.uiManager.handleExploreAreaClick();
       $("#explore_area_content").html(message);
@@ -616,8 +626,8 @@ class LayerManager {
         const name = feature.properties.NAME;
         if (country_array.includes(name)) {
           return {
-            color: "#8F1C06",
-            weight: 1,
+            color: "#581204ff",
+            weight: 2,
             fillColor: "rgba(255,255,255,0)",
             fillOpacity: 0,
           };
@@ -647,7 +657,7 @@ class UIManager {
   constructor(app) {
     this.app = app;
     this.sidebar = null;
-
+    this._eventsAbort = null;
     window.addEventListener("projectionchange", () => {
       this.initSideBar();
     });
@@ -694,7 +704,7 @@ class UIManager {
 
     const el = document.querySelector("#data_container");
     const isHidden = el && window.getComputedStyle(el).display === "none";
-    console.log("是否隐藏：", isHidden);
+    //console.log("是否隐藏：", isHidden);
     if (!isHidden) return;
 
     let currentZoom = map.getZoom();
@@ -800,30 +810,50 @@ class UIManager {
   }
 
   initSidebarEvents() {
+    if (this._eventsAbort) this._eventsAbort.abort();
+    this._eventsAbort = new AbortController();
+    const sig = this._eventsAbort.signal;
+
     document
       .querySelector("#explore")
-      .addEventListener("click", this.handleExploreClick.bind(this));
+      .addEventListener("click", this.handleExploreClick.bind(this), {
+        signal: sig,
+      });
     document
       .querySelector("#data_query")
-      .addEventListener("click", this.handleDataQueryClick.bind(this));
+      .addEventListener("click", this.handleDataQueryClick.bind(this), {
+        signal: sig,
+      });
     document
       .querySelector("#about_project")
-      .addEventListener("click", this.handleAboutProjectClick.bind(this));
+      .addEventListener("click", this.handleAboutProjectClick.bind(this), {
+        signal: sig,
+      });
     document
       .querySelector("#data_source")
-      .addEventListener("click", this.handleDataSourceClick.bind(this));
+      .addEventListener("click", this.handleDataSourceClick.bind(this), {
+        signal: sig,
+      });
     document
       .querySelector("#about_team")
-      .addEventListener("click", this.handleAboutTeamClick.bind(this));
+      .addEventListener("click", this.handleAboutTeamClick.bind(this), {
+        signal: sig,
+      });
     document
       .querySelector("#explore_area")
-      .addEventListener("click", this.handleExploreAreaClick.bind(this));
+      .addEventListener("click", this.handleExploreAreaClick.bind(this), {
+        signal: sig,
+      });
     document
       .querySelector("#palace_history")
-      .addEventListener("click", this.handlePalaceHistoryClick.bind(this));
+      .addEventListener("click", this.handlePalaceHistoryClick.bind(this), {
+        signal: sig,
+      });
     document
       .querySelector("#picture_more")
-      .addEventListener("click", this.handlePictureMoreClick.bind(this));
+      .addEventListener("click", this.handlePictureMoreClick.bind(this), {
+        signal: sig,
+      });
   }
 
   backtoocean() {
@@ -892,6 +922,7 @@ class EventManager {
   constructor(app) {
     this.app = app;
     this.layersControl = null;
+    this.zoomControl = null;
 
     window.addEventListener("projectionchange", (e) => {
       const mode = e.detail.projection;
@@ -912,6 +943,15 @@ class EventManager {
           map.removeControl(this.layersControl);
         } catch {}
       this.layersControl = null;
+    }
+
+    if (this.zoomControl) {
+      const map = this.getMap();
+      if (map)
+        try {
+          map.removeControl(this.zoomControl);
+        } catch {}
+      this.zoomControl = null;
     }
 
     // 仅在 WGS 下挂载这些控件
@@ -938,11 +978,12 @@ class EventManager {
   attachZoomHandler() {
     const map = this.getMap();
     if (!map) return;
-    L.control.zoom({ position: "topright" }).addTo(map);
+    this.zoomControl = L.control.zoom({ position: "topright" }).addTo(map);
     map.on("zoomend", () => {
       this.app.uiManager.updateSidebarByZoom();
     });
   }
+
   attachDrawButtons() {
     const map = this.getMap();
     if (!map || !map.pm) return;
