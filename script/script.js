@@ -131,15 +131,15 @@ class MapManager {
     //this.mapSpilhaus.fitBounds(this.mapBounds);
 
     // 调试：看看每级 “世界像素” 和瓦片数
-    this.mapSpilhaus.on("zoomend", () => {
-      const z = this.mapSpilhaus.getZoom();
-      const wb = this.spilhausCRS.getProjectedBounds(z).getSize();
+    // this.mapSpilhaus.on("zoomend", () => {
+    //   const z = this.mapSpilhaus.getZoom();
+    //   const wb = this.spilhausCRS.getProjectedBounds(z).getSize();
       // console.log(
       //   `world px @z=${z}: ${wb.x} x ${wb.y}; tiles ≈ ${Math.ceil(
       //     wb.x / 256
       //   )} x ${Math.ceil(wb.y / 256)}`
       // );
-    });
+    // });
   }
 
   addSpilhausTiles() {

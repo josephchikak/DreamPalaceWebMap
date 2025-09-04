@@ -16,7 +16,7 @@ def transform(in_path, out_path):
 
     for feature in data.get("features"):
         coords = feature.get("geometry").get("coordinates") 
-        feature["geometry"]["coordinates"] = [[[tx_point(pt) for pt in ring] for ring in poly]for poly in coords]
+        feature["geometry"]["coordinates"] = [[tx_point(pt) for pt in ring] for ring in coords]
         
     with open (out_path, "w", encoding = "utf-8") as f:
         json.dump(data,f,ensure_ascii=False)
