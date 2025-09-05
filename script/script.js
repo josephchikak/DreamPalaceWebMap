@@ -134,11 +134,11 @@ class MapManager {
     // this.mapSpilhaus.on("zoomend", () => {
     //   const z = this.mapSpilhaus.getZoom();
     //   const wb = this.spilhausCRS.getProjectedBounds(z).getSize();
-      // console.log(
-      //   `world px @z=${z}: ${wb.x} x ${wb.y}; tiles ≈ ${Math.ceil(
-      //     wb.x / 256
-      //   )} x ${Math.ceil(wb.y / 256)}`
-      // );
+    // console.log(
+    //   `world px @z=${z}: ${wb.x} x ${wb.y}; tiles ≈ ${Math.ceil(
+    //     wb.x / 256
+    //   )} x ${Math.ceil(wb.y / 256)}`
+    // );
     // });
   }
 
@@ -333,6 +333,7 @@ class LayerManager {
     this.openStreetMap = null;
     this.city = null;
     this.world = null;
+    this.empire = null;
     this.palace = null;
 
     window.addEventListener("projectionchange", (e) => {
@@ -578,7 +579,29 @@ class LayerManager {
     }).addTo(map);
   }
 
-  loadEmpirePolygon() {}
+  loadEmpirePolygon() {
+    this.empire = new L.GeoJSON.AJAX("assets/FrenchWest.geojson", {
+      pane: "empirePane",
+      style: (feature) => {
+        const name = feature.properties.NAME;
+        return {
+          color: "#581204ff",
+          weight: 2,
+          fillColor: "rgba(255,255,255,0)",
+          fillOpacity: 0,
+        };
+      },
+      // onEachFeature: (feature, layer) => {
+      //   const name = feature.properties.NAME;
+      //   // 点击国家移动禁止
+      //   // if (country_array.includes(name)) {
+      //   //   layer.on("click", () => {
+      //   //     this.app.mapManager.setView(centroid[name], 5);
+      //   //   });
+      //   // }
+      // },
+    }).addTo(map);
+  }
 
   loadWorldPolygon() {
     const map = this.getMap();
