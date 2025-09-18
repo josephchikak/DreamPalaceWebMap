@@ -370,8 +370,10 @@ class LayerManager {
     if (!map.getPane("palacePane")) map.createPane("palacePane");
     if (!map.getPane("cityPane")) map.createPane("cityPane");
     if (!map.getPane("worldPane")) map.createPane("worldPane");
+    if (!map.getPane("empirePane")) map.createPane("empirePane");
     map.getPane("palacePane").style.zIndex = 450;
-    map.getPane("cityPane").style.zIndex = 300;
+    map.getPane("cityPane").style.zIndex = 400;
+    map.getPane("empirePane").style.zIndex = 300;
     map.getPane("worldPane").style.zIndex = 250;
   }
 
@@ -580,16 +582,32 @@ class LayerManager {
   }
 
   loadEmpirePolygon() {
-    this.empire = new L.GeoJSON.AJAX("assets/FrenchWest.geojson", {
+    const map = this.getMap();
+    this.empire = new L.GeoJSON.AJAX("assets/empire.geojson", {
       pane: "empirePane",
       style: (feature) => {
         const name = feature.properties.NAME;
+        let fillColor = "#cccccc"; // 默认颜色（灰色）
+
+        if (name === "French") {
+          fillColor = "cyan"; // 青色
+        } else if (name === "British") {
+          fillColor = "blue"; // 蓝色
+        } else if (name === "Portugal") {
+          fillColor = "red"; // 红色
+        }
+
         return {
-          color: "#581204ff",
-          weight: 2,
-          fillColor: "rgba(255,255,255,0)",
-          fillOpacity: 0,
+          color: fillColor, // 边界线颜色
+          weight: 1, // 边界线宽度
+          fillColor: fillColor, // 填充色
+          fillOpacity: 0.4,
         };
+      },
+      onEachFeature: (feature, layer) => {
+        const name = feature.properties.NAME;
+        // 绑定弹窗，显示 NAME
+        layer.bindPopup(`<b>${name}</b>`);
       },
       // onEachFeature: (feature, layer) => {
       //   const name = feature.properties.NAME;
@@ -659,7 +677,7 @@ class LayerManager {
           color: "white",
           weight: 0.4,
           fillColor: "gray",
-          fillOpacity: 0.6,
+          fillOpacity: 0,
         };
       },
       onEachFeature: (feature, layer) => {
@@ -994,6 +1012,7 @@ class EventManager {
     const overLays = {
       "City Boundary": this.app.layerManager.city,
       "Country Boundary": this.app.layerManager.world,
+      "Empire Boundary": this.app.layerManager.empire,
     };
     this.layersControl = L.control.layers(baseLayers, overLays).addTo(map);
   }
