@@ -404,10 +404,13 @@ class LayerManager {
   loadPalacePoints() {
     const map = this.getMap();
     if (!map) return;
-    this.palace = new L.GeoJSON.AJAX("assets/Address_US.geojson", {
-      pane: "palacePane",
-      pointToLayer: this.getPointStyleFunction(),
-    }).addTo(map);
+    this.palace = new L.GeoJSON.AJAX(
+      "/Users/xy/Documents/workspace/DreamPalaceWebMap/airtablesync/places_cache.geojson",
+      {
+        pane: "palacePane",
+        pointToLayer: this.getPointStyleFunction(),
+      }
+    ).addTo(map);
   }
 
   initStyleRadioWatcher() {

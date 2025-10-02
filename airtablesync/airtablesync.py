@@ -19,7 +19,7 @@ CACHE_PATH = os.getenv("CACHE_PATH", "./airtablesync/places_cache.geojson")
 REFRESH_TOKEN = os.getenv("REFRESH_TOKEN", "")
 MIN_REFRESH_SEC = int(os.getenv("REFRESH_MIN_INVERVAL_SECONDS", "300"))
 
-# ===Flack Application===
+# ===Flask Application===
 app = Flask(__name__)
 LOCK = threading.Lock()
 
@@ -41,7 +41,7 @@ def load_cache_from_disk():
 
 def save_cache_to_disk(geojson):
     ensure_dir(CACHE_PATH)
-    with open (CACHE_PATH, "w", encoding="utf-9") as f:
+    with open (CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(geojson, f, ensure_ascii=False)
     CACHE["updated_at"] = os.path.getmtime(CACHE_PATH)
 
