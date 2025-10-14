@@ -167,7 +167,7 @@ class MapManager {
     this.mapWgs = L.map(this.containerWgs, {
       center,
       zoom: Math.max(zoom, 4),
-      minZoom: 4,
+      minZoom: 2,
       maxZoom: 19,
       scrollWheelZoom: true,
       doubleClickZoom: true,
@@ -404,13 +404,12 @@ class LayerManager {
   loadPalacePoints() {
     const map = this.getMap();
     if (!map) return;
-    this.palace = new L.GeoJSON.AJAX(
-      "/Users/xy/Documents/workspace/DreamPalaceWebMap/airtablesync/places_cache.geojson",
-      {
-        pane: "palacePane",
-        pointToLayer: this.getPointStyleFunction(),
-      }
-    ).addTo(map);
+    this.palace = new L.GeoJSON.AJAX("airtablesync/places_cache.geojson", {
+      pane: "palacePane",
+      pointToLayer: this.getPointStyleFunction(),
+      // pointToLayer: (_feature, latlng) =>
+      //   L.circleMarker(latlng, { radius: 4, fillOpacity: 0.85, weight: 1 }),
+    }).addTo(map);
   }
 
   initStyleRadioWatcher() {
@@ -437,7 +436,7 @@ class LayerManager {
     if (this.palace) {
       map.removeLayer(this.palace);
     }
-    this.palace = new L.GeoJSON.AJAX("assets/Address_US.geojson", {
+    this.palace = new L.GeoJSON.AJAX("airtablesync/places_cache.geojson", {
       pointToLayer: this.getPointStyleFunction(),
       pane: "palacePane",
     }).addTo(map);
@@ -455,7 +454,7 @@ class LayerManager {
 
   pointStyle1(feature, latlng) {
     const attr = feature.properties;
-    const status = attr["Current Status"];
+    const status = attr["Condition"];
     const marker = L.circleMarker(latlng, {
       radius: 4.5,
       fillOpacity: 0.9,
@@ -488,7 +487,7 @@ class LayerManager {
 
   pointStyle2(feature, latlng) {
     const attr = feature.properties;
-    const status = attr["Specific Location"];
+    const status = attr["Address"];
     const radius = 4.5;
     const opacity = 0.6;
     const weight = 2;
@@ -539,19 +538,19 @@ class LayerManager {
       "<br> City:&nbsp" +
       data.City +
       "<br> State:&nbsp" +
-      data.State +
+      data["State / Province"] +
       "<br> ZIP Code:&nbsp" +
       data.ZIP +
       "<br> Current Status:&nbsp" +
-      (data["Current Status"] ? data["Current Status"] : "Unknown") +
+      (data["Condition"] ? data["Condition"] : "Unknown") +
       "<br> Year of Existence:&nbsp" +
-      (data.Creation ? data.Creation : "Unknown") +
+      (data["createdTime"] ? data.Creation : "Unknown") +
       "&nbsp-&nbsp" +
-      (data.Closure ? data.Closure : "Unknown") +
-      "<br> Website:&nbsp" +
-      (data.Website ? data.Website : "Unknown") +
-      "<br> Notes:&nbsp" +
-      (data.Notes ? data.Notes : "Unknown")
+      (data.Closure ? data.Closure : "Unknown")
+      // "<br> Website:&nbsp" +
+      // (data.Website ? data.Website : "Unknown") +
+      // "<br> Notes:&nbsp" +
+      // (data.Notes ? data.Notes : "Unknown")
     );
   }
 

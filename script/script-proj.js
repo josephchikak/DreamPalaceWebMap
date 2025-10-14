@@ -77,7 +77,7 @@ map_spilhaus.on("zoomend", () => {
 tile.on("tileloadstart", (e) => console.log("start", e.coords, e.tile.src));
 tile.on("tileerror", (e) => console.warn("tileerror", e.coords, e.tile.src));
 
-// —— 你的“已是米坐标”的 GeoJSON —— //
+// —— “已是米坐标”的 GeoJSON —— //
 fetch("/assets/ukspilhaus.geojson", { cache: "no-cache" })
   .then((r) => {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);

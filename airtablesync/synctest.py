@@ -40,7 +40,7 @@ def to_geojson(data):
             "type":"Feature",
             "geometry": {
                 "type": "Point",
-                "corrdinates": [lng,lat]
+                "coordinates": [lng,lat]
             },
             "properties":
                 props
