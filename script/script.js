@@ -391,11 +391,13 @@ class LayerManager {
     const map = this.getMap();
     if (!map) return;
     this.openStreetMap = L.tileLayer(
-      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.{ext}",
       {
-        maxZoom: 19,
+        minZoom: 0,
+        maxZoom: 20,
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        ext: "png",
       }
     );
     this.openStreetMap.addTo(map);
@@ -460,11 +462,8 @@ class LayerManager {
       fillOpacity: 0.9,
       opacity: 0.6,
       weight: 2,
-      fillColor:
-        status === "Still Standing"
-          ? "rgba(235, 65, 113, 1)"
-          : "rgba(203, 206, 18, 1)",
-      color: status === "Still Standing" ? "#C70039" : "#f9e79f",
+      fillColor: status === "Still Standing" ? "#0077b6" : "#00b4d8",
+      color: status === "Still Standing" ? "#f4f2f2ff" : "#ffffffff",
     });
 
     marker.on("click", () => {
@@ -589,21 +588,22 @@ class LayerManager {
       pane: "empirePane",
       style: (feature) => {
         const name = feature.properties.NAME;
-        let fillColor = "#cccccc"; // 默认颜色（灰色）
+        let fillColor = "#ffffffff"; // 默认颜色（灰色）
 
         if (name === "French") {
-          fillColor = "cyan"; // 青色
+          fillColor = "#81b29a";
         } else if (name === "British") {
-          fillColor = "blue"; // 蓝色
+          fillColor = "#c77dff";
         } else if (name === "Portugal") {
-          fillColor = "red"; // 红色
+          fillColor = "#ff9b54";
         }
 
         return {
           color: fillColor, // 边界线颜色
-          weight: 1, // 边界线宽度
-          fillColor: fillColor, // 填充色
-          fillOpacity: 0.4,
+          weight: 3, // 边界线宽度
+          // fillColor: fillColor, // 填充色
+          // fillOpacity: 0.4,
+          fill: false,
         };
       },
       onEachFeature: (feature, layer) => {
