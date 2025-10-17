@@ -1057,6 +1057,13 @@ class EventManager {
   }
 }
 
+// class ChartDataProcess {
+//   constructor() {
+//     this.app = app;
+//     this.allData = [];
+//   }
+// }
+
 // test the script
 const app = new WebMapApp();
 app.initialize();

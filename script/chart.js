@@ -1,58 +1,50 @@
 const ctx = document.getElementById("dream_palace").getContext("2d");
 
 const data = {
-  labels: ["Condition", "Typology", "Ownership"],
-  datasets: [
-    {
-      label: "Part A",
-      data: [30, 20, 10],
-      backgroundColor: "#90caf9",
-    },
-    {
-      label: "Part B",
-      data: [50, 40, 70],
-      backgroundColor: "#64b5f6",
-    },
-    {
-      label: "Without Data",
-      data: [20, 40, 20],
-      backgroundColor: "#1976d2",
-    },
-  ],
+  condition: { Active: 4, Alive: 12, Demolished: 8 },
+  typology: { palace: 10, theater: 6, museum: 9 },
+  ownership: { private: 7, public: 13, collective: 4 },
 };
 
+// === 处理数据 ===
+const categories = ["condition", "typology", "ownership"];
+// 找出每组内部的所有子类别
+const subLabels = [...new Set(Object.values(data).flatMap(Object.keys))];
+
+// 为每个子类别创建一个 dataset
+const datasets = subLabels.map((sub, i) => ({
+  label: sub,
+  backgroundColor: [
+    "#90caf9",
+    "#64b5f6",
+    "#42a5f5",
+    "#ba68c8",
+    "#f06292",
+    "#81c784",
+    "#ffb74d",
+  ][i % 7],
+  data: categories.map((cat) => data[cat][sub] || 0), // 没有的填0
+}));
+
+// === 绘制图表 ===
 new Chart(ctx, {
   type: "bar",
-  data: data,
+  data: {
+    labels: categories.map((c) => c[0].toUpperCase() + c.slice(1)), // 格式化标题
+    datasets: datasets,
+  },
   options: {
     responsive: true,
-    maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: "top",
-      },
-      tooltip: {
-        mode: "index",
-        intersect: false,
-      },
+      legend: { position: "top" },
       title: {
         display: false,
-        text: "Stacked Bar Chart Example",
+        text: "Attributes by Category",
       },
     },
     scales: {
-      x: {
-        stacked: true, // ✅ 开启X轴堆叠
-      },
-      y: {
-        stacked: true, // ✅ 开启Y轴堆叠
-        beginAtZero: true,
-        max: 100, // 如果你是百分比数据
-        title: {
-          display: true,
-          text: "Percentage (%)",
-        },
-      },
+      x: { stacked: true },
+      y: { stacked: true, beginAtZero: true },
     },
   },
 });
