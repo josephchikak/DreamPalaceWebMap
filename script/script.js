@@ -36,7 +36,7 @@ class MapManager {
     this.spilhausTiles = null;
     this.spilhausCountryLayers = [];
     // setveiw
-    this.spilhausStart = { center: [0, -13000000], zoom: 2 };
+    this.spilhausStart = { center: [-1590000, -14000000], zoom: 2 };
     this.wgsDefaultZoom = 4;
     // country centroid
     this.countryCentroid = {
@@ -68,16 +68,18 @@ class MapManager {
   }
 
   buildCRS() {
-    const minx = -16857702.71589949;
-    const miny = -17212325.962645144;
-    const maxx = 17289853.05215329;
-    const maxy = 16935229.805407636;
+    const xOffset = 0; // 右移 20万
+    const yOffset = 3232190; // 上移
+    const minx = -16589673.7126 + xOffset;
+    const miny = -16615682.2786 + yOffset;
+    const maxx = 16881778.7724 + xOffset;
+    const maxy = 16855770.2064 + yOffset;
 
     const resolutions = [
-      213422.22355032988708, // z=0
-      106711.11177516494354, // z=1
-      53355.55588758247177, // z=2
-      26677.77794379123588, // z=3
+      191265.4427718493971, // z=0
+      95632.72138592469855, // z=1
+      47816.36069296234928, // z=2
+      23908.18034648117464, // z=3
     ];
 
     this.metersProjection = {
@@ -143,7 +145,7 @@ class MapManager {
   }
 
   addSpilhausTiles() {
-    this.spilhausTiles = L.tileLayer("tiles8.12/{z}/{x}/{y}.png", {
+    this.spilhausTiles = L.tileLayer("tileOcean10.29/{z}/{x}/{y}.png", {
       tms: true,
       tileSize: 256,
       minZoom: 2,
@@ -176,12 +178,12 @@ class MapManager {
     });
 
     L.tileLayer(
-      "https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.{ext}",
+      "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}",
       {
         minZoom: 0,
         maxZoom: 20,
         attribution:
-          '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         ext: "png",
       }
     ).addTo(this.mapWgs);
@@ -189,9 +191,9 @@ class MapManager {
 
   loadSpilhausCountries() {
     const style = {
-      color: "#1f2937",
+      color: "#e4e5e7ff",
       weight: 1,
-      fillColor: "#60a5fa",
+      fillColor: "#062244ff",
       fillOpacity: 0.25,
     };
 
@@ -395,12 +397,12 @@ class LayerManager {
     const map = this.getMap();
     if (!map) return;
     this.openStreetMap = L.tileLayer(
-      "https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.{ext}",
+      "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}",
       {
         minZoom: 0,
         maxZoom: 20,
         attribution:
-          '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         ext: "png",
       }
     );
