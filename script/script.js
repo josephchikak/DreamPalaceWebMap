@@ -5,6 +5,7 @@ class WebMapApp {
     this.uiManager = new UIManager(this);
     this.searchManager = new SearchManager(this);
     this.eventManager = new EventManager(this);
+    this.timelineManager = new TimelineManager(this);
   }
 
   initialize() {
@@ -346,6 +347,12 @@ class LayerManager {
       const mode = e.detail.projection;
       this.loadForProjection(mode);
     });
+
+    window.addEventListener("yearFiltered", (e) => {
+      const filtered = e.detail.filtered;
+      console.log("LayerManager received filtered:", filtered.length);
+      this.reloadPalacePoints(filtered);
+    });
   }
 
   loadForProjection(mode) {
@@ -371,16 +378,17 @@ class LayerManager {
   }
 
   _initPanesWGS() {
+    //skip city and world for now
     const map = this.getMap();
     if (!map) return;
     if (!map.getPane("palacePane")) map.createPane("palacePane");
-    if (!map.getPane("cityPane")) map.createPane("cityPane");
-    if (!map.getPane("worldPane")) map.createPane("worldPane");
+    // if (!map.getPane("cityPane")) map.createPane("cityPane");
+    // if (!map.getPane("worldPane")) map.createPane("worldPane");
     if (!map.getPane("empirePane")) map.createPane("empirePane");
     map.getPane("palacePane").style.zIndex = 450;
-    map.getPane("cityPane").style.zIndex = 400;
+    // map.getPane("cityPane").style.zIndex = 400;
     map.getPane("empirePane").style.zIndex = 300;
-    map.getPane("worldPane").style.zIndex = 250;
+    // map.getPane("worldPane").style.zIndex = 250;
   }
 
   clearAll() {
@@ -412,12 +420,32 @@ class LayerManager {
   loadPalacePoints() {
     const map = this.getMap();
     if (!map) return;
+
     this.palace = new L.GeoJSON.AJAX("airtablesync/places_cache.geojson", {
       pane: "palacePane",
       pointToLayer: this.getPointStyleFunction(),
       // pointToLayer: (_feature, latlng) =>
       //   L.circleMarker(latlng, { radius: 4, fillOpacity: 0.85, weight: 1 }),
     }).addTo(map);
+  }
+
+  // this reload is for timeline change
+  reloadPalacePoints(filtered = null) {
+    const map = this.getMap();
+    const proj = this.getProj();
+    if (!map || proj === "splihaus") return;
+
+    if (this.palace) {
+      map.removeLayer(this.palace);
+    }
+
+    if (filtered) {
+      this.palace = L.geoJSON(filtered, {
+        pointToLayer: this.getPointStyleFunction(),
+        pane: "palacePane",
+      }).addTo(map);
+    }
+    return;
   }
 
   initStyleRadioWatcher() {
@@ -559,34 +587,34 @@ class LayerManager {
     );
   }
 
-  loadCityPolygon() {
-    const map = this.getMap();
-    if (!map) return;
-    this.city = new L.GeoJSON.AJAX("assets/citylayer7.30.geojson", {
-      pane: "cityPane",
-      style: () => ({
-        color: "gray",
-        weight: 0,
-        opacity: 1,
-        fillOpacity: 0,
-      }),
-      onEachFeature: (feature, layer) => {
-        this.city_list.push({
-          name: feature.properties.city,
-          layer,
-          bounds: layer.getBounds(),
-        });
+  // loadCityPolygon() {
+  //   const map = this.getMap();
+  //   if (!map) return;
+  //   this.city = new L.GeoJSON.AJAX("assets/citylayer7.30.geojson", {
+  //     pane: "cityPane",
+  //     style: () => ({
+  //       color: "gray",
+  //       weight: 0,
+  //       opacity: 1,
+  //       fillOpacity: 0,
+  //     }),
+  //     onEachFeature: (feature, layer) => {
+  //       this.city_list.push({
+  //         name: feature.properties.city,
+  //         layer,
+  //         bounds: layer.getBounds(),
+  //       });
 
-        layer.on("mouseover", () => {
-          layer.setStyle({ weight: 1.3 });
-        });
+  //       layer.on("mouseover", () => {
+  //         layer.setStyle({ weight: 1.3 });
+  //       });
 
-        layer.on("mouseout", () => {
-          layer.setStyle({ weight: 0 });
-        });
-      },
-    }).addTo(map);
-  }
+  //       layer.on("mouseout", () => {
+  //         layer.setStyle({ weight: 0 });
+  //       });
+  //     },
+  //   }).addTo(map);
+  // }
 
   loadEmpirePolygon() {
     const map = this.getMap();
@@ -629,77 +657,77 @@ class LayerManager {
     }).addTo(map);
   }
 
-  loadWorldPolygon() {
-    const map = this.getMap();
-    if (!map) return;
-    const country_array = [
-      "Brazil",
-      "Burkina Faso",
-      "Cameroon",
-      "Ghana",
-      "Mali",
-      "Mozambique",
-      "Nigeria",
-      "Senegal",
-      "South Africa",
-      "United Kingdom",
-      "United States of America",
-    ];
-    const centroid = {
-      // prettier-ignore
-      "Brazil": [-7.535994, -72.340427],
-      // prettier-ignore
-      "Burkina Faso": [11.726473, -5.308822],
-      // prettier-ignore
-      "Cameroon": [5.810411, 9.631660],
-      // prettier-ignore
-      "Ghana": [7.678434, -2.749734],
-      // prettier-ignore
-      "Mali": [18.191814, -5.811439],
-      // prettier-ignore
-      "Mozambique": [-18.877222, 32.659506],
-      // prettier-ignore
-      "Nigeria": [9.039145, 2.763425],
-      // prettier-ignore
-      "Senegal": [14.781868, -17.375992],
-      // prettier-ignore
-      "South Africa": [-28.898819, 17.063372],
-      // prettier-ignore
-      "United Kingdom": [54.091472, -13.224016],
-      // prettier-ignore
-      "United States of America": [41.599380, -105.308336],
-    };
-    this.world = new L.GeoJSON.AJAX("assets/worldPolygon.geojson", {
-      pane: "worldPane",
-      style: (feature) => {
-        const name = feature.properties.NAME;
-        if (country_array.includes(name)) {
-          return {
-            color: "#581204ff",
-            weight: 2,
-            fillColor: "rgba(255,255,255,0)",
-            fillOpacity: 0,
-          };
-        }
-        return {
-          color: "white",
-          weight: 0.4,
-          fillColor: "gray",
-          fillOpacity: 0,
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const name = feature.properties.NAME;
-        this.country_list.push({ name, layer });
-        // 点击国家移动禁止
-        // if (country_array.includes(name)) {
-        //   layer.on("click", () => {
-        //     this.app.mapManager.setView(centroid[name], 5);
-        //   });
-        // }
-      },
-    }).addTo(map);
-  }
+  // loadWorldPolygon() {
+  //   const map = this.getMap();
+  //   if (!map) return;
+  //   const country_array = [
+  //     "Brazil",
+  //     "Burkina Faso",
+  //     "Cameroon",
+  //     "Ghana",
+  //     "Mali",
+  //     "Mozambique",
+  //     "Nigeria",
+  //     "Senegal",
+  //     "South Africa",
+  //     "United Kingdom",
+  //     "United States of America",
+  //   ];
+  //   const centroid = {
+  //     // prettier-ignore
+  //     "Brazil": [-7.535994, -72.340427],
+  //     // prettier-ignore
+  //     "Burkina Faso": [11.726473, -5.308822],
+  //     // prettier-ignore
+  //     "Cameroon": [5.810411, 9.631660],
+  //     // prettier-ignore
+  //     "Ghana": [7.678434, -2.749734],
+  //     // prettier-ignore
+  //     "Mali": [18.191814, -5.811439],
+  //     // prettier-ignore
+  //     "Mozambique": [-18.877222, 32.659506],
+  //     // prettier-ignore
+  //     "Nigeria": [9.039145, 2.763425],
+  //     // prettier-ignore
+  //     "Senegal": [14.781868, -17.375992],
+  //     // prettier-ignore
+  //     "South Africa": [-28.898819, 17.063372],
+  //     // prettier-ignore
+  //     "United Kingdom": [54.091472, -13.224016],
+  //     // prettier-ignore
+  //     "United States of America": [41.599380, -105.308336],
+  //   };
+  //   this.world = new L.GeoJSON.AJAX("assets/worldPolygon.geojson", {
+  //     pane: "worldPane",
+  //     style: (feature) => {
+  //       const name = feature.properties.NAME;
+  //       if (country_array.includes(name)) {
+  //         return {
+  //           color: "#581204ff",
+  //           weight: 2,
+  //           fillColor: "rgba(255,255,255,0)",
+  //           fillOpacity: 0,
+  //         };
+  //       }
+  //       return {
+  //         color: "white",
+  //         weight: 0.4,
+  //         fillColor: "gray",
+  //         fillOpacity: 0,
+  //       };
+  //     },
+  //     onEachFeature: (feature, layer) => {
+  //       const name = feature.properties.NAME;
+  //       this.country_list.push({ name, layer });
+  //       // 点击国家移动禁止
+  //       // if (country_array.includes(name)) {
+  //       //   layer.on("click", () => {
+  //       //     this.app.mapManager.setView(centroid[name], 5);
+  //       //   });
+  //       // }
+  //     },
+  //   }).addTo(map);
+  // }
 }
 
 class UIManager {
@@ -1059,13 +1087,92 @@ class EventManager {
   }
 }
 
-// class ChartDataProcess {
-//   constructor() {
-//     this.app = app;
-//     this.allData = [];
-//   }
-// }
+class TimelineManager {
+  constructor(app) {
+    this.app = app;
+    this.year = null;
+    this.geojsondata = null;
+    this.filtered = null;
 
+    // Bind methods so event listeners keep correct "this"
+    this.initTimelineUI = this.initTimelineUI.bind(this);
+    this.removeTimelineUI = this.removeTimelineUI(this);
+    this.onYearChange = this.onYearChange.bind(this);
+
+    window.addEventListener("projectionchange", (e) => {
+      const mode = e.detail.projection;
+      if (mode === "wgs") this.initTimelineUI();
+      else this.removeTimelineUI();
+    });
+  }
+
+  getMap() {
+    return this.app.mapManager.getActiveMap();
+  }
+
+  removeTimelineUI() {
+    document.getElementById("time-control").style.display = "none";
+    this.year = null;
+    this.filtered = null;
+
+    //remove slider listerner if exists
+    const slider = document.getElementById("timeSlider");
+    if (slider) slider.removeEventListener("input", this.onYearChange);
+  }
+
+  initTimelineUI() {
+    document.getElementById("time-control").style.display = "flex";
+    const slider = document.getElementById("timeSlider");
+    const yearLabel = document.getElementById("yearLabel");
+    if (!slider || !yearLabel) {
+      console.warn("Timeline UI elements not found!");
+      return;
+    }
+    slider.addEventListener("input", this.onYearChange);
+  }
+
+  // When user moves slider
+  onYearChange(e) {
+    const slider = document.getElementById("timeSlider");
+    const year = Number(slider.value);
+    this.year = year;
+    const yearLabel = document.getElementById("yearLabel");
+    yearLabel.textContent = year;
+    console.log("selected year:", year);
+    this.updateDataByYear(year);
+  }
+
+  loadGeojsonData(year) {
+    // Load geojson once
+    if (!this.geojsonData) {
+      fetch("airtablesync/places_cache.geojson")
+        .then((res) => res.json())
+        .then((data) => {
+          this.geojsonData = data;
+          this.applyYearFilter(year);
+        });
+    } else {
+      this.applyYearFilter(year);
+    }
+  }
+
+  applyYearFilter(year) {
+    this.filtered = this.geojsonData.features.filter(
+      (f) =>
+        Number(f.properties.Creation) <= year &&
+        Number(f.properties.Closure) >= year
+    );
+    console.log("Filtered features count:", this.filtered.length);
+    window.dispatchEvent(
+      new CustomEvent("yearFiltered", {
+        detail: {
+          year,
+          filtered: this.filtered,
+        },
+      })
+    );
+  }
+}
 // test the script
 const app = new WebMapApp();
 app.initialize();
