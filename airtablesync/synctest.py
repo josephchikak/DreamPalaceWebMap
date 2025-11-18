@@ -16,7 +16,7 @@ LNG_FIELD = os.getenv("LNG_FIELD")
 def fetch_all_records():
     api = Api(AIRTABLE_TOKEN)
     table = api.table(AIRTABLE_BASE,AIRTABLE_TABLE)
-    fields = ["Name", "City", "Country", "Address", "State / Province", "ZIP Code", "Latitude", "Longitude", "Condition", "Typology", "Creation", "Closure"]
+    fields = ["Name", "City", "Country", "Address", "State / Province", "ZIP Code", "Latitude", "Longitude", "Condition [V2] ", "Typology", "Creation", "Closure"]
     records = table.all(fields=fields) # didn't set the airtable view - assume we only use grid view
     return records
 
@@ -52,6 +52,12 @@ def to_geojson(data):
         "name": "AirtableData",
         "features": features
     }
+
+def condition_name(geo):
+    for item in geo.get("features"):
+        for k,v in item.get("properties").items():
+            if k == "Condition [V2] ":
+                k = "Condition"
 
 def write_geojson(geo,path=CACHE_PATH):
     os.makedirs(os.path.dirname(path), exist_ok=True)
