@@ -16,11 +16,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"/>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/leaflet-geoman.css">
-    <link rel="stylesheet" href="node_modules/leaflet-search/src/leaflet-search.css">
+   
     <!-- Leaflet -->
     <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
-    <script src="node_modules/leaflet-search/src/leaflet-search.js"></script>
-    <script src="plugins/ajax/leaflet.ajax.js"></script>
     <script src="script/leaflet-sidebar.js"></script> 
     <script src="script/leaflet-geoman.js"></script>
     <!-- jQuery UI -->
@@ -151,30 +149,52 @@
                                 <label> <input type="radio" id="pointStyle2" name = "choosestyle"> Query data have specific location </label>
                             </form>
                         </div>
-                        <div id = "chart_canva">
-                            <canvas id="dream_palace"></canvas>
-                            <p> Current Focus Area:</p>
+                           <!-- timeline -->
+                        <div id="time-control">
+                             <div id = "year-display"> Year: All </div>
+                                <input 
+                                    type="range" 
+                                    id="timeSlider" 
+                                    min="1900" 
+                                    max="2026" 
+                                    step="1" 
+                                    value="2026"
+                                />
                         </div>
+                        <div id="filter-card">
+
+                        <!-- Country -->
+                          <select id="filter-country" class="filter-select">
+                            <option value="" selected disabled>Country</option>
+                            </select>
+
+                        <!-- City -->
+                        <select id="filter-city" class="filter-select">
+                            <option value="" selected disabled>City</option>
+                        </select>
+
+                        <!-- Condition -->
+                        <select id="filter-condition" class="filter-select">
+                            <option value="" selected disabled>Condition</option>
+                        </select>
+
+                        <!-- Typology -->
+                        <select id="filter-typology" class="filter-select">
+                            <option value="" selected disabled>Typology</option>
+                        </select>
+
+                        <!-- Clean filter -->
+                        <button id="btn-clean-filter" class="btn-clean">Clean Filters</button>
+
+                        <!-- Current Focus Area -->
+                        <div id="focus-area">
+                         <!-- put query data here -->
+                        </div>
+                        </div>
+
                     </div>
                 </div>
-                <div class = "col-xs-11 line"></div>
-                <div id = "data_operation_container">
-                    <p> You can use the edit bar in the right side to draw a pin in the area that the cinema locats. 
-                        You can drag it or remove it after dorop the pin. Fill the form below and let us know other data about the cinema.
-                        <br>Submit as a reader: Your data will be sumbit to a "waiting room" database the team will add it later. 
-                        <br>Submit as admin: With correct user name and passcode, you can edit database directly through the website.
-                    </p>
-                    <form onsubmit="handleSubmit(event)">
-                        <input type="text" name="cinemaName" placeholder="name of the cinema">
-                        <input type="text" name="location" placeholder="specific Location">
-                        <br><input type="text" name="city" placeholder="city">
-                        <input type="text" name="state" placeholder="state/province">
-                        <br><input type="text" name="country" placeholder="country">
-                        <input type="text" name="other" placeholder="other content">
-                        <br><input type="text" name="experience" placeholder="your experience">
-                        <br><button type="submit">Submit All</button>
-                    </form>
-                </div>
+                <!-- <div class = "col-xs-11 line"></div> -->
             </div>
             <!-- back to main -->
             <div class = "reset sidebar-noheader" id = "backtospilhaus">
@@ -196,19 +216,6 @@
                 <h1 class="sidebar-header">Settings<span class="sidebar-close"><i class="fa fa-caret-left"></i></span></h1>
             </div>
         </div>
-    </div>
-
-    <!-- timeline -->
-  <div id="time-control">
-    <label for="timeSlider">Year: <span id="yearLabel">1950</span></label>
-    <input 
-        type="range" 
-        id="timeSlider" 
-        min="1900" 
-        max="2025" 
-        step="1" 
-        value="1950"
-    />
     </div>
 
     <!-- map part -->

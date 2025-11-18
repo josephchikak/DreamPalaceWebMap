@@ -3,7 +3,7 @@ class WebMapApp {
     this.mapManager = new MapManager(this);
     this.layerManager = new LayerManager(this);
     this.uiManager = new UIManager(this);
-    this.searchManager = new SearchManager(this);
+    // this.searchManager = new SearchManager(this);
     this.eventManager = new EventManager(this);
     this.timelineManager = new TimelineManager(this);
   }
@@ -342,6 +342,8 @@ class LayerManager {
     this.world = null;
     this.empire = null;
     this.palace = null;
+    this.originalData = null;
+    this.filteredFeatures = null;
 
     window.addEventListener("projectionchange", (e) => {
       const mode = e.detail.projection;
@@ -362,11 +364,24 @@ class LayerManager {
     }
     this._initPanesWGS();
     this.loadBasemapWGS();
-    this.loadPalacePoints();
+    //1）load data
+    this.loadPalaceData().then(() => {
+      // after dropdown is populated
+      this.app.uiManager.initFilterEvents();
+      // timeline slider should appear now
+      this.app.timelineManager.initTimelineUI();
+      this.reloadPalacePoints();
+      window.dispatchEvent(
+        new CustomEvent("projectionready", {
+          detail: { projection: "wgs" },
+        })
+      );
+    });
+
     this.initStyleRadioWatcher();
-    this.loadCityPolygon();
+    // this.loadCityPolygon();
     this.loadEmpirePolygon();
-    this.loadWorldPolygon();
+    // this.loadWorldPolygon();
   }
 
   getMap() {
@@ -417,35 +432,101 @@ class LayerManager {
     this.openStreetMap.addTo(map);
   }
 
-  loadPalacePoints() {
+  // loadPalacePoints() {
+  //   const map = this.getMap();
+  //   if (!map) return;
+
+  //   this.palace = new L.GeoJSON.AJAX("airtablesync/places_cache.geojson", {
+  //     pane: "palacePane",
+  //     pointToLayer: this.getPointStyleFunction(),
+  //     // pointToLayer: (_feature, latlng) =>
+  //     //   L.circleMarker(latlng, { radius: 4, fillOpacity: 0.85, weight: 1 }),
+  //   }).addTo(map);
+  // }
+
+  // load original data (all year/ all data)
+  async loadPalaceData() {
+    try {
+      const response = await fetch("airtablesync/places_cache.geojson");
+      this.originalData = await response.json();
+      console.log("Original data loaded:", this.originalData);
+      this.app.uiManager.populateDropdowns(this.originalData);
+      this.reloadPalacePoints();
+    } catch (err) {
+      console.error("Failed to load palace data", err);
+    }
+  }
+
+  //render layer
+  renderPalaceLayer(filteredFeatures) {
     const map = this.getMap();
     if (!map) return;
 
-    this.palace = new L.GeoJSON.AJAX("airtablesync/places_cache.geojson", {
-      pane: "palacePane",
-      pointToLayer: this.getPointStyleFunction(),
-      // pointToLayer: (_feature, latlng) =>
-      //   L.circleMarker(latlng, { radius: 4, fillOpacity: 0.85, weight: 1 }),
-    }).addTo(map);
+    //clean old layer
+    if (this.palace) {
+      map.removeLayer(this.palace);
+    }
+    // add new layer
+    this.palace = L.geoJSON(
+      { type: "FeatureCollection", features: filteredFeatures },
+      { pointToLayer: this.getPointStyleFunction() }
+    ).addTo(map);
   }
 
-  // this reload is for timeline change
-  reloadPalacePoints(filtered = null) {
+  // get combined filter data
+  getCombinedFilters() {
+    return {
+      ...this.app.uiManager.getUIFilters(),
+      ...this.app.timelineManager.getTimeFilters(),
+    };
+  }
+
+  // filter original data
+  filterData() {
+    const filters = this.getCombinedFilters();
+
+    return this.originalData.features.filter((f) => {
+      const p = f.properties;
+      const timeMatch =
+        (!filters.yearStart || p.year >= filters.yearStart) &&
+        (!filters.yearEnd || p.year <= filters.yearEnd);
+
+      const countryMatch =
+        filters.country === "all" || p.Country === filters.country;
+      const cityMatch = filters.city === "all" || p.City === filters.city;
+      const conditionMatch =
+        filters.condition === "all" || p.Condition === filters.condition;
+      const typologyMatch =
+        filters.typology === "all" || p.Typology === filters.typology;
+      return (
+        timeMatch &&
+        cityMatch &&
+        countryMatch &&
+        conditionMatch &&
+        typologyMatch
+      );
+    });
+  }
+
+  // update map
+  reloadPalacePoints() {
     const map = this.getMap();
     const proj = this.getProj();
-    if (!map || proj === "splihaus") return;
+    if (proj !== "wgs") {
+      console.log("Skip reloadPalacePoints(): not WGS");
+      return;
+    }
+    if (!map) {
+      console.warn("Map not ready yet, skip reloadPalacePoints()");
+      return;
+    }
 
     if (this.palace) {
       map.removeLayer(this.palace);
     }
 
-    if (filtered) {
-      this.palace = L.geoJSON(filtered, {
-        pointToLayer: this.getPointStyleFunction(),
-        pane: "palacePane",
-      }).addTo(map);
-    }
-    return;
+    const filteredFeatures = this.filterData();
+    this.renderPalaceLayer(filteredFeatures);
   }
 
   initStyleRadioWatcher() {
@@ -587,6 +668,7 @@ class LayerManager {
     );
   }
 
+  //暂时停止city polygon 展示
   // loadCityPolygon() {
   //   const map = this.getMap();
   //   if (!map) return;
@@ -616,45 +698,43 @@ class LayerManager {
   //   }).addTo(map);
   // }
 
-  loadEmpirePolygon() {
+  async loadEmpirePolygon() {
     const map = this.getMap();
-    this.empire = new L.GeoJSON.AJAX("assets/empire.geojson", {
-      pane: "empirePane",
-      style: (feature) => {
-        const name = feature.properties.NAME;
-        let fillColor = "#ffffffff"; // 默认颜色（灰色）
+    if (!map) return;
+    try {
+      const response = await fetch("assets/empire.geojson");
+      const data = await response.json();
+      this.empire = L.geoJSON(data, {
+        pane: "empirePane",
+        style: (feature) => {
+          const name = feature.properties.NAME;
+          let fillColor = "#ffffffff"; // 默认颜色（灰色）
 
-        if (name === "French") {
-          fillColor = "#81b29a";
-        } else if (name === "British") {
-          fillColor = "#c77dff";
-        } else if (name === "Portugal") {
-          fillColor = "#ff9b54";
-        }
+          if (name === "French") {
+            fillColor = "#81b29a";
+          } else if (name === "British") {
+            fillColor = "#c77dff";
+          } else if (name === "Portugal") {
+            fillColor = "#ff9b54";
+          }
 
-        return {
-          color: fillColor, // 边界线颜色
-          weight: 3, // 边界线宽度
-          // fillColor: fillColor, // 填充色
-          // fillOpacity: 0.4,
-          fill: false,
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const name = feature.properties.NAME;
-        // 绑定弹窗，显示 NAME
-        layer.bindPopup(`<b>${name}</b>`);
-      },
-      // onEachFeature: (feature, layer) => {
-      //   const name = feature.properties.NAME;
-      //   // 点击国家移动禁止
-      //   // if (country_array.includes(name)) {
-      //   //   layer.on("click", () => {
-      //   //     this.app.mapManager.setView(centroid[name], 5);
-      //   //   });
-      //   // }
-      // },
-    }).addTo(map);
+          return {
+            color: fillColor, // 边界线颜色
+            weight: 3, // 边界线宽度
+            // fillColor: fillColor, // 填充色
+            // fillOpacity: 0.4,
+            fill: false,
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties.NAME;
+          // 绑定弹窗，显示 NAME
+          layer.bindPopup(`<b>${name}</b>`);
+        },
+      }).addTo(map);
+    } catch (err) {
+      console.error("Failed to load empire polygon:", err);
+    }
   }
 
   // loadWorldPolygon() {
@@ -933,6 +1013,100 @@ class UIManager {
       });
   }
 
+  initFilterEvents() {
+    const ids = [
+      "filter-country",
+      "filter-city",
+      "filter-condition",
+      "filter-typology",
+    ];
+
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("change", () => {
+          this.app.layerManager.reloadPalacePoints();
+        });
+      }
+    });
+
+    const cleanBtn = document.getElementById("btn-clean-filter");
+    if (cleanBtn) {
+      cleanBtn.addEventListener("click", () => {
+        this.resetFilter();
+        this.app.layerManager.reloadPalacePoints();
+      });
+    }
+  }
+
+  resetFilter() {
+    const ids = [
+      "filter-country",
+      "filter-city",
+      "filter-condition",
+      "filter-typology",
+    ];
+
+    ids.forEach((id) => {
+      const sel = document.getElementById(id);
+      if (sel) sel.selectedIndex = 0;
+    });
+  }
+
+  populateDropdowns(geojson) {
+    const features = geojson.features;
+
+    const unique = (field) => {
+      const values = features.flatMap((f) => {
+        const v = f.properties[field];
+        if (Array.isArray(v)) return v.filter(Boolean);
+        return v ? [v] : [];
+      });
+
+      const cleaned = [...new Set(values)].sort();
+      console.log(`Unique ${field}:`, cleaned);
+      return cleaned;
+    };
+
+    const countries = unique("Country");
+    const cities = unique("City");
+    const conditions = unique("Condition");
+    const typologies = unique("Typology");
+
+    console.log("Countries:", countries);
+    console.log("Cities:", cities);
+    console.log("Conditions:", conditions);
+    console.log("Typologies:", typologies);
+
+    fill("filter-country", countries);
+    fill("filter-city", cities);
+    fill("filter-condition", conditions);
+    fill("filter-typology", typologies);
+    // fill("filter-country", unique("Country"));
+    // fill("filter-city", unique("City"));
+    // fill("filter-condition", unique("Condition"));
+    // fill("filter-typology", unique("Typology"));
+
+    function fill(id, items) {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+
+      sel.innerHTML =
+        `
+      <option value="" disabled selected>${id.replace("filter-", "")}</option>
+    ` + items.map((i) => `<option value="${i}">${i}</option>`).join("");
+    }
+  }
+
+  getUIFilters() {
+    return {
+      country: document.getElementById("filter-country")?.value || "all",
+      city: document.getElementById("filter-city")?.value || "all",
+      condition: document.getElementById("filter-condition")?.value || "all",
+      typology: document.getElementById("filter-typology")?.value || "all",
+    };
+  }
+
   backtoocean() {
     const el = document.querySelector("#back");
     if (!el) return;
@@ -952,7 +1126,7 @@ class SearchManager {
     this.poliLayer = null;
     this.searchControl = null;
 
-    window.addEventListener("projectionchange", (e) => {
+    window.addEventListener("projectionready", (e) => {
       const mode = e.detail.projection;
       if (mode === "wgs") this.initSearchBar();
       else this.removeSearchBar();
@@ -974,10 +1148,13 @@ class SearchManager {
     const map = this.getMap();
     if (!map) return;
     this.removeSearchBar();
-    this.poliLayer = L.featureGroup([
-      this.app.layerManager.city,
-      this.app.layerManager.world,
-    ]);
+    const layers = [
+      this.app.layerManager.empire,
+      // this.app.layerManager.city,
+      // this.app.layerManager.world,
+    ].filter(Boolean);
+
+    this.poliLayer = L.featureGroup(layers);
 
     this.searchControl = new L.Control.Search({
       layer: this.poliLayer,
@@ -1001,7 +1178,8 @@ class EventManager {
     this.layersControl = null;
     this.zoomControl = null;
 
-    window.addEventListener("projectionchange", (e) => {
+    window.addEventListener("projectionready", (e) => {
+      console.log("🔥 EventManager detected projection:", e.detail.projection);
       const mode = e.detail.projection;
       this.rebindForProjection(mode);
     });
@@ -1040,6 +1218,11 @@ class EventManager {
   }
 
   attachLayerControl() {
+    console.log("openStreetMap:", this.app.layerManager.openStreetMap);
+    console.log("city:", this.app.layerManager.city);
+    console.log("world:", this.app.layerManager.world);
+    console.log("empire:", this.app.layerManager.empire);
+
     const map = this.getMap();
     if (!map) return;
     const baseLayers = {
@@ -1050,7 +1233,12 @@ class EventManager {
       "Country Boundary": this.app.layerManager.world,
       "Empire Boundary": this.app.layerManager.empire,
     };
-    this.layersControl = L.control.layers(baseLayers, overLays).addTo(map);
+    const sanitizedOverlays = Object.fromEntries(
+      Object.entries(overLays).filter(([k, v]) => v)
+    );
+    this.layersControl = L.control
+      .layers(baseLayers, sanitizedOverlays)
+      .addTo(map);
   }
 
   attachZoomHandler() {
@@ -1096,81 +1284,67 @@ class TimelineManager {
 
     // Bind methods so event listeners keep correct "this"
     this.initTimelineUI = this.initTimelineUI.bind(this);
-    this.removeTimelineUI = this.removeTimelineUI(this);
+    this.removeTimelineUI = this.removeTimelineUI.bind(this);
     this.onYearChange = this.onYearChange.bind(this);
-
-    window.addEventListener("projectionchange", (e) => {
-      const mode = e.detail.projection;
-      if (mode === "wgs") this.initTimelineUI();
-      else this.removeTimelineUI();
-    });
   }
 
   getMap() {
     return this.app.mapManager.getActiveMap();
   }
 
-  removeTimelineUI() {
-    document.getElementById("time-control").style.display = "none";
-    this.year = null;
-    this.filtered = null;
-
-    //remove slider listerner if exists
-    const slider = document.getElementById("timeSlider");
-    if (slider) slider.removeEventListener("input", this.onYearChange);
-  }
-
   initTimelineUI() {
     document.getElementById("time-control").style.display = "flex";
     const slider = document.getElementById("timeSlider");
-    const yearLabel = document.getElementById("yearLabel");
-    if (!slider || !yearLabel) {
+    const yearDisplay = document.getElementById("year-display");
+
+    if (!slider || !yearDisplay) {
       console.warn("Timeline UI elements not found!");
       return;
     }
-    slider.addEventListener("input", this.onYearChange);
+    this.boundOnYearChange = this.onYearChange.bind(this);
+    slider.addEventListener("input", this.boundOnYearChange);
+
+    // default: all
+    slider.value = 2026;
+    this.year = null;
+    yearDisplay.textContent = "Year: All";
+  }
+
+  removeTimelineUI() {
+    document.getElementById("time-control").style.display = "none";
+
+    // remove slider listerner if exists
+    const slider = document.getElementById("timeSlider");
+    if (slider && this.boundOnYearChange) {
+      slider.removeEventListener("input", this.boundOnYearChange);
+    }
+    this.year = null;
   }
 
   // When user moves slider
   onYearChange(e) {
-    const slider = document.getElementById("timeSlider");
-    const year = Number(slider.value);
-    this.year = year;
-    const yearLabel = document.getElementById("yearLabel");
-    yearLabel.textContent = year;
-    console.log("selected year:", year);
-    this.updateDataByYear(year);
-  }
+    const value = Number(e.target.value);
+    // update ui
+    const yearDisplay = document.getElementById("year-display");
 
-  loadGeojsonData(year) {
-    // Load geojson once
-    if (!this.geojsonData) {
-      fetch("airtablesync/places_cache.geojson")
-        .then((res) => res.json())
-        .then((data) => {
-          this.geojsonData = data;
-          this.applyYearFilter(year);
-        });
+    // special case: value = 2026 is all years
+    if (value === 2026) {
+      this.year = null;
+      yearDisplay.textContent = "Year: All";
     } else {
-      this.applyYearFilter(year);
+      this.year = value;
+      yearDisplay.textContent = `Year: ${value}`;
     }
+    console.log("selected year:", value);
+    // inform layermanager
+    this.app.layerManager.reloadPalacePoints();
   }
 
-  applyYearFilter(year) {
-    this.filtered = this.geojsonData.features.filter(
-      (f) =>
-        Number(f.properties.Creation) <= year &&
-        Number(f.properties.Closure) >= year
-    );
-    console.log("Filtered features count:", this.filtered.length);
-    window.dispatchEvent(
-      new CustomEvent("yearFiltered", {
-        detail: {
-          year,
-          filtered: this.filtered,
-        },
-      })
-    );
+  getTimeFilters() {
+    return {
+      yearStart: this.year ? this.year : null,
+      yearEnd: this.year ? this.year : null,
+    };
   }
 }
 // test the script
