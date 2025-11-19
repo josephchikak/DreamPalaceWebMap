@@ -482,10 +482,10 @@ class LayerManager {
 
     return this.originalData.features.filter((f) => {
       const p = f.properties;
-      const timeMatch =
-        (!filters.yearStart || p.year >= filters.yearStart) &&
-        (!filters.yearEnd || p.year <= filters.yearEnd);
-
+      const timeMatch_Creation =
+        filters.yearChoose === "all" || p.Creation <= filters.yearChoose;
+      const timeMatch_Closure =
+        filters.yearChoose === "all" || p.Closure >= filters.yearChoose;
       const countryMatch =
         filters.country === "all" || p.Country === filters.country;
       const cityMatch = filters.city === "all" || p.City === filters.city;
@@ -494,7 +494,8 @@ class LayerManager {
       const typologyMatch =
         filters.typology === "all" || p.Typology === filters.typology;
       return (
-        timeMatch &&
+        timeMatch_Creation &&
+        timeMatch_Closure &&
         cityMatch &&
         countryMatch &&
         conditionMatch &&
@@ -508,7 +509,7 @@ class LayerManager {
     const map = this.getMap();
     const proj = this.getProj();
     if (proj !== "wgs") {
-      console.log("Skip reloadPalacePoints(): not WGS");
+      // console.log("Skip reloadPalacePoints(): not WGS");
       return;
     }
     if (!map) {
@@ -568,10 +569,10 @@ class LayerManager {
     const attr = feature.properties;
     const status = attr["Condition"];
     const marker = L.circleMarker(latlng, {
-      radius: 4.5,
+      radius: 2.1,
       fillOpacity: 0.9,
       opacity: 0.6,
-      weight: 2,
+      weight: 1,
       fillColor: status === "Still Standing" ? "#0077b6" : "#00b4d8",
       color: status === "Still Standing" ? "#f4f2f2ff" : "#ffffffff",
     });
@@ -706,16 +707,17 @@ class LayerManager {
           let fillColor = "#ffffffff"; // 默认颜色（灰色）
 
           if (name === "French") {
-            fillColor = "#81b29a";
+            fillColor = "#EAC170";
           } else if (name === "British") {
-            fillColor = "#c77dff";
+            fillColor = "#D5E2EC";
           } else if (name === "Portugal") {
-            fillColor = "#ff9b54";
+            fillColor = "#EAC170";
           }
 
           return {
             color: fillColor, // 边界线颜色
-            weight: 3, // 边界线宽度
+            weight: 1.5, // 边界线宽度
+            opacity: 0.4,
             // fillColor: fillColor, // 填充色
             // fillOpacity: 0.4,
             fill: false,
@@ -1059,7 +1061,7 @@ class UIManager {
       });
 
       const cleaned = [...new Set(values)].sort();
-      console.log(`Unique ${field}:`, cleaned);
+      // console.log(`Unique ${field}:`, cleaned);
       return cleaned;
     };
 
@@ -1068,19 +1070,10 @@ class UIManager {
     const conditions = unique("Condition");
     const typologies = unique("Typology");
 
-    console.log("Countries:", countries);
-    console.log("Cities:", cities);
-    console.log("Conditions:", conditions);
-    console.log("Typologies:", typologies);
-
     fill("filter-country", countries);
     fill("filter-city", cities);
     fill("filter-condition", conditions);
     fill("filter-typology", typologies);
-    // fill("filter-country", unique("Country"));
-    // fill("filter-city", unique("City"));
-    // fill("filter-condition", unique("Condition"));
-    // fill("filter-typology", unique("Typology"));
 
     function fill(id, items) {
       const sel = document.getElementById(id);
@@ -1174,7 +1167,6 @@ class EventManager {
     this.zoomControl = null;
 
     window.addEventListener("projectionready", (e) => {
-      console.log("🔥 EventManager detected projection:", e.detail.projection);
       const mode = e.detail.projection;
       this.rebindForProjection(mode);
     });
@@ -1213,11 +1205,6 @@ class EventManager {
   }
 
   attachLayerControl() {
-    console.log("openStreetMap:", this.app.layerManager.openStreetMap);
-    console.log("city:", this.app.layerManager.city);
-    console.log("world:", this.app.layerManager.world);
-    console.log("empire:", this.app.layerManager.empire);
-
     const map = this.getMap();
     if (!map) return;
     const baseLayers = {
@@ -1324,21 +1311,19 @@ class TimelineManager {
 
     // special case: value = 2026 is all years
     if (value === 2026) {
-      this.year = null;
+      this.year = "all";
       yearDisplay.textContent = "Year: All";
     } else {
       this.year = value;
       yearDisplay.textContent = `Year: ${value}`;
     }
-    console.log("selected year:", value);
     // inform layermanager
     this.app.layerManager.reloadPalacePoints();
   }
 
   getTimeFilters() {
     return {
-      yearStart: this.year ? this.year : null,
-      yearEnd: this.year ? this.year : null,
+      yearChoose: this.year ? this.year : "all",
     };
   }
 }
