@@ -42,7 +42,6 @@ body {
 #mapSpilhaus {
   position: absolute;
   inset: 0;
-  top: 80px;
   height: 100%;
   width: 100%;
   z-index: 0;
@@ -54,27 +53,10 @@ body {
 #mapWgs {
   position: absolute;
   inset: 0;
-  top: 80px;
   width: 100%;
   z-index: 0;
   pointer-events: none;
   display: none;
-}
-
-#time-control {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.9);
-  padding: 10px 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  z-index: 9999;
-}
-
-#timeSlider {
-  width: 200px;
 }
 
 .ui-autocomplete {

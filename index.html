@@ -16,11 +16,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"/>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/leaflet-geoman.css">
-    <link rel="stylesheet" href="node_modules/leaflet-search/src/leaflet-search.css">
+   
     <!-- Leaflet -->
     <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
-    <script src="node_modules/leaflet-search/src/leaflet-search.js"></script>
-    <script src="plugins/ajax/leaflet.ajax.js"></script>
     <script src="script/leaflet-sidebar.js"></script> 
     <script src="script/leaflet-geoman.js"></script>
     <!-- jQuery UI -->
@@ -35,155 +33,114 @@
     <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script>
     <!-- chart.js-->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script> -->
     <!-- map script cod Defer -->
     <!-- <script defer src="script/script-proj.js"></script> -->
     <script defer src="script/script.js"></script>
-    <script defer src="script/chart.js"></script>
     <title>Dream Places</title>
   </head>
   <body>
-    <div id = "header">
-        <a id ="cursor-pointer" href= '/'> Dream Palaces</a>
-    </div>
     <!-- Side Bar -->
     <div id="sidebar" class="sidebar collapsed">
-          <!-- Nav tabs -->
+        <!-- Nav left tabs -->
         <div class="sidebar-tabs">
             <ul role="tablist">
                 <li><a href="#home" role="tab"><i class="fa-solid fa-caret-right"></i></a></li>
             </ul>
         </div>
 
-        <!-- Tab panes -->
+        <!-- Tab panes 除去左边nav part部分的内容-->
         <div class="sidebar-content">
             <div class="sidebar-pane" id="home">
 
                 <!-- sidebar header -->
-                <h1 class="sidebar-header text-left">
+                <div class="sidebar-header">
                     <span class="sidebar-close"><i class="fa fa-caret-left"></i></span>
-                </h1>
+                </div>
 
+                <!-- Spilhaus Proj Content  -->
                 <!-- Menu Level 1 (Explore Dream Palaces & Data Query) -->
-                <div class="sidebar-noheader sectionmenu_container" id = "level_1_menu_group" style= "margin-bottom: 5px; margin-top:10px">
-                    <a class="level_1_menu" id="explore" href="#">Explore Dream Palaces</a>
-                    <a class="level_1_menu" id="data_query" href="#">Data Query</a>       
-                </div>
-                <div class = "col-xs-11 line"></div>
-
-                <!-- Menu Level 2 (About Project & Data Source & About Team) -->
-                <div class = "sidebar-noheader" id = "explore_container">
-                    <div class="menu_container" id = "level_2_menu_group" style= "margin-bottom: 5px; margin-top: 18px">
-                        <div class="sidebar_menu" id = "level_2_menu_group_1">
-                            <a class="level_2_menu" id="about_project" href="#">Map Design +</a>
-                            <a class="level_2_menu" id="data_source" href="#">Data Source +</a> 
-                            <a class="level_2_menu" id="about_team" href="#">About Team +</a>  
-                        </div>  
-                        <div class="sidebar_menu" id = "level_2_menu_group_2">
-                            <a class="level_2_menu" id="explore_area" href="#">Explore Area</a>
-                            <a class="level_2_menu" id="palace_history" href="#">Palace History</a> 
-                            <a class="level_2_menu" id="picture_more" href="#">Picture and More</a>  
-                        </div>
+                <div id = "spilhaus_sidebar">
+                    <div class="sidebar-noheader sectionmenu_container" id = "level_1_menu_group" style= "margin-bottom: 5px;">
+                        <h1 class="level_1_menu" id="explore">Explore Dream Palaces Map</h1>      
                     </div>
-
-                    <!-- Explore Dream Palaces Content Part -->
-                    <div class = "sidebar-noheader" id = "explore_container_no_menu">
-                        <div class = "content_container" id = "about_project_content">
-                            <p id = "about_project_text">Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
-                                Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
-                                Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos. 
-                            </p>
-                        </div>
-                        <div class = "content_container" id = "data_source_content">
-                            <ul id = "data_source">
-                                <li>
-                                    <strong>News Paper</strong> 
-                                    <p>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
-                                        Lorem ipsum dolor sit amet</p>
-                                </li>
-                                <li>
-                                    <strong>Social Media</strong> 
-                                    <p>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
-                                        Lorem ipsum dolor sit amet</p>
-                                </li>
-                                <li>
-                                    <strong>Local Institutions</strong> 
-                                    <p>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
-                                        Lorem ipsum dolor sit amet</p>
-                                </li>  
-                                <li>
-                                    <strong>Other Inspiration</strong> 
-                                    <p>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
-                                        Lorem ipsum dolor sit amet</p>
-                                </li> 
-                            </ul>
-                        </div>
-                        <div class = "content_container" id = "about_team_content">
-                            <ul id = "about_team_text">
-                                <li>Data Collection</li>
-                                <li>Data Cleaning</li>
-                                <li>Communication</li>
-                                <li>Website Making</li>
-                            </ul>
-                        </div>
-                        <div class = "content_container" id = "explore_area_content">
-                            <p id = "about_project_text">Explore Area
-                            </p>
-                        </div>
-                        <div class = "content_container" id = "palace_history_content">
-                            <p id = "about_project_text">Some history here
-                            </p>
-                        </div>
-                        <div class = "content_container" id = "picture_more_content">
-                            <p id = "about_project_text"> More knowedge please
-                            </p>
-                        </div>
-                    </div>
+                    <div class = "col-xs-11 line"></div>
+                    <!-- About Map Content -->
+                    <div class = "sidebar-noheader" id = "explore_container">
+                        <p id = "about_map_text">Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
+                            Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
+                            Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos. 
+                        </p>
+                    </div>    
                 </div>
 
-            <!-- Data Query Content Part -->
-            <div id = data_container class = "sidebar-noheader">
-                <div id = "query_statistics_container">
-                    <div id = "data_query_window">
-                        <div id = "option_form">
-                            <form id="choose_style">
-                                <div>Show Palace Data Based on:</div>
-                                <label> <input type="radio" id="pointStyle1" name = "choosestyle" checked> Query all data </label>
-                                <label> <input type="radio" id="pointStyle2" name = "choosestyle"> Query data have specific location </label>
-                            </form>
+                <!-- WGS Proj Content -->
+                <div id = "wgs_sidebar">
+                    <div class="sidebar-noheader sectionmenu_container" id = "level_1_menu_group" style= "margin-bottom: 5px; margin-top:10px">
+                        <div id="time-control">
+                             <div id = "year-display"> Year: All </div>
+                                <input 
+                                    type="range" 
+                                    id="timeSlider" 
+                                    min="1900" 
+                                    max="2026" 
+                                    step="1" 
+                                    value="2026"
+                                />
                         </div>
-                        <div id = "chart_canva">
-                            <canvas id="dream_palace"></canvas>
-                            <p> Current Focus Area:</p>
+
+                        <div id="filter-card">
+                            <!-- Country -->
+                            <select id="filter-country" class="filter-select">
+                                <option value="" selected disabled>Country</option>
+                                </select>
+
+                            <!-- City -->
+                            <select id="filter-city" class="filter-select">
+                                <option value="" selected disabled>City</option>
+                            </select>
+
+                            <!-- Condition -->
+                            <select id="filter-condition" class="filter-select">
+                                <option value="" selected disabled>Condition</option>
+                            </select>
+
+                            <!-- Typology -->
+                            <select id="filter-typology" class="filter-select">
+                                <option value="" selected disabled>Typology</option>
+                            </select>
+
+                            <!-- Clean filter -->
+                            <button id="btn-clean-filter" class="btn-clean">Clean Filters</button>
+
+                            <!-- Current Focus Area -->
+                            <div id="focus-area">
                         </div>
+                        <!-- Area Info Card -->
+                        <div class = "area_info">
+                            <p style="color: aliceblue;"> Some text about country and regions</p>
+                        </div>
+                        <!-- Query Result -->
+                        <div class = "data_query_window">
+                            <p style="color: aliceblue;">Here put all data result from Airtable</p>
+                        </div>
+
                     </div>
-                </div>
-                <div class = "col-xs-11 line"></div>
-                <div id = "data_operation_container">
-                    <p> You can use the edit bar in the right side to draw a pin in the area that the cinema locats. 
-                        You can drag it or remove it after dorop the pin. Fill the form below and let us know other data about the cinema.
-                        <br>Submit as a reader: Your data will be sumbit to a "waiting room" database the team will add it later. 
-                        <br>Submit as admin: With correct user name and passcode, you can edit database directly through the website.
-                    </p>
-                    <form onsubmit="handleSubmit(event)">
-                        <input type="text" name="cinemaName" placeholder="name of the cinema">
-                        <input type="text" name="location" placeholder="specific Location">
-                        <br><input type="text" name="city" placeholder="city">
-                        <input type="text" name="state" placeholder="state/province">
-                        <br><input type="text" name="country" placeholder="country">
-                        <input type="text" name="other" placeholder="other content">
-                        <br><input type="text" name="experience" placeholder="your experience">
-                        <br><button type="submit">Submit All</button>
-                    </form>
-                </div>
-            </div>
-            <!-- back to main -->
-            <div class = "reset sidebar-noheader" id = "backtospilhaus">
-                <div class = "col-xs-11 line"></div>
-                <div class="col-xs-12 text-center">
-                    <a id="back" href="#">Back to Ocean</a>
+                    <div class = "col-xs-11 line"></div>
+                   
                 </div>
             </div> 
+           
+
+        <!-- back to main -->
+        <div class = "reset sidebar-noheader" id = "backtospilhaus">
+            <div class = "col-xs-11 line"></div>
+            <div class="col-xs-12 text-center">
+                <a id="back" href="#">Back to Ocean</a>
+            </div>
+        </div> 
+        
+        <!-- No use but didn't delete cuz sidebar JS effect -->
         </div>
             <div class="sidebar-pane" id="profile">
                 <h1 class="sidebar-header text-center">Data Queer<span class="sidebar-close"><i class="fa fa-caret-left"></i></span></h1>
@@ -199,19 +156,6 @@
         </div>
     </div>
 
-    <!-- timeline -->
-  <div id="time-control">
-    <label for="timeSlider">Year: <span id="yearLabel">1950</span></label>
-    <input 
-        type="range" 
-        id="timeSlider" 
-        min="1900" 
-        max="2025" 
-        step="1" 
-        value="1950"
-    />
-    </div>
-    
     <!-- map part -->
     <div class = "map-container">
         <div id="mapSpilhaus"></div>

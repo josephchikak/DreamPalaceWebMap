@@ -3,8 +3,9 @@ class WebMapApp {
     this.mapManager = new MapManager(this);
     this.layerManager = new LayerManager(this);
     this.uiManager = new UIManager(this);
-    this.searchManager = new SearchManager(this);
+    // this.searchManager = new SearchManager(this);
     this.eventManager = new EventManager(this);
+    this.timelineManager = new TimelineManager(this);
   }
 
   initialize() {
@@ -178,13 +179,10 @@ class MapManager {
     });
 
     L.tileLayer(
-      "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}",
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       {
-        minZoom: 0,
         maxZoom: 20,
-        attribution:
-          '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        ext: "png",
+        attribution: "&copy; CARTO &copy; OpenStreetMap contributors",
       }
     ).addTo(this.mapWgs);
   }
@@ -341,10 +339,18 @@ class LayerManager {
     this.world = null;
     this.empire = null;
     this.palace = null;
+    this.originalData = null;
+    this.filteredFeatures = null;
 
     window.addEventListener("projectionchange", (e) => {
       const mode = e.detail.projection;
       this.loadForProjection(mode);
+    });
+
+    window.addEventListener("yearFiltered", (e) => {
+      const filtered = e.detail.filtered;
+      console.log("LayerManager received filtered:", filtered.length);
+      this.reloadPalacePoints(filtered);
     });
   }
 
@@ -355,11 +361,24 @@ class LayerManager {
     }
     this._initPanesWGS();
     this.loadBasemapWGS();
-    this.loadPalacePoints();
+    //1）load data
+    this.loadPalaceData().then(() => {
+      // after dropdown is populated
+      this.app.uiManager.initFilterEvents();
+      // timeline slider should appear now
+      this.app.timelineManager.initTimelineUI();
+      this.reloadPalacePoints();
+      window.dispatchEvent(
+        new CustomEvent("projectionready", {
+          detail: { projection: "wgs" },
+        })
+      );
+    });
+
     this.initStyleRadioWatcher();
-    this.loadCityPolygon();
+    // this.loadCityPolygon();
     this.loadEmpirePolygon();
-    this.loadWorldPolygon();
+    // this.loadWorldPolygon();
   }
 
   getMap() {
@@ -371,16 +390,17 @@ class LayerManager {
   }
 
   _initPanesWGS() {
+    //skip city and world for now
     const map = this.getMap();
     if (!map) return;
     if (!map.getPane("palacePane")) map.createPane("palacePane");
-    if (!map.getPane("cityPane")) map.createPane("cityPane");
-    if (!map.getPane("worldPane")) map.createPane("worldPane");
+    // if (!map.getPane("cityPane")) map.createPane("cityPane");
+    // if (!map.getPane("worldPane")) map.createPane("worldPane");
     if (!map.getPane("empirePane")) map.createPane("empirePane");
     map.getPane("palacePane").style.zIndex = 450;
-    map.getPane("cityPane").style.zIndex = 400;
+    // map.getPane("cityPane").style.zIndex = 400;
     map.getPane("empirePane").style.zIndex = 300;
-    map.getPane("worldPane").style.zIndex = 250;
+    // map.getPane("worldPane").style.zIndex = 250;
   }
 
   clearAll() {
@@ -397,27 +417,112 @@ class LayerManager {
     const map = this.getMap();
     if (!map) return;
     this.openStreetMap = L.tileLayer(
-      "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}",
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       {
-        minZoom: 0,
         maxZoom: 20,
-        attribution:
-          '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        ext: "png",
+        attribution: "&copy; CARTO &copy; OpenStreetMap contributors",
       }
-    );
+    ).addTo(map);
+
     this.openStreetMap.addTo(map);
   }
 
-  loadPalacePoints() {
+  // loadPalacePoints() {
+  //   const map = this.getMap();
+  //   if (!map) return;
+
+  //   this.palace = new L.GeoJSON.AJAX("airtablesync/places_cache.geojson", {
+  //     pane: "palacePane",
+  //     pointToLayer: this.getPointStyleFunction(),
+  //     // pointToLayer: (_feature, latlng) =>
+  //     //   L.circleMarker(latlng, { radius: 4, fillOpacity: 0.85, weight: 1 }),
+  //   }).addTo(map);
+  // }
+
+  // load original data (all year/ all data)
+  async loadPalaceData() {
+    try {
+      const response = await fetch("airtablesync/places_cache.geojson");
+      this.originalData = await response.json();
+      console.log("Original data loaded:", this.originalData);
+      this.app.uiManager.populateDropdowns(this.originalData);
+      this.reloadPalacePoints();
+    } catch (err) {
+      console.error("Failed to load palace data", err);
+    }
+  }
+
+  //render layer
+  renderPalaceLayer(filteredFeatures) {
     const map = this.getMap();
     if (!map) return;
-    this.palace = new L.GeoJSON.AJAX("airtablesync/places_cache.geojson", {
-      pane: "palacePane",
-      pointToLayer: this.getPointStyleFunction(),
-      // pointToLayer: (_feature, latlng) =>
-      //   L.circleMarker(latlng, { radius: 4, fillOpacity: 0.85, weight: 1 }),
-    }).addTo(map);
+
+    //clean old layer
+    if (this.palace) {
+      map.removeLayer(this.palace);
+    }
+    // add new layer
+    this.palace = L.geoJSON(
+      { type: "FeatureCollection", features: filteredFeatures },
+      { pointToLayer: this.getPointStyleFunction() }
+    ).addTo(map);
+  }
+
+  // get combined filter data
+  getCombinedFilters() {
+    return {
+      ...this.app.uiManager.getUIFilters(),
+      ...this.app.timelineManager.getTimeFilters(),
+    };
+  }
+
+  // filter original data
+  filterData() {
+    const filters = this.getCombinedFilters();
+
+    return this.originalData.features.filter((f) => {
+      const p = f.properties;
+      const timeMatch_Creation =
+        filters.yearChoose === "all" || p.Creation <= filters.yearChoose;
+      const timeMatch_Closure =
+        filters.yearChoose === "all" || p.Closure >= filters.yearChoose;
+      const countryMatch =
+        filters.country === "all" || p.Country === filters.country;
+      const cityMatch = filters.city === "all" || p.City === filters.city;
+      const conditionMatch =
+        filters.condition === "all" || p.Condition === filters.condition;
+      const typologyMatch =
+        filters.typology === "all" || p.Typology === filters.typology;
+      return (
+        timeMatch_Creation &&
+        timeMatch_Closure &&
+        cityMatch &&
+        countryMatch &&
+        conditionMatch &&
+        typologyMatch
+      );
+    });
+  }
+
+  // update map
+  reloadPalacePoints() {
+    const map = this.getMap();
+    const proj = this.getProj();
+    if (proj !== "wgs") {
+      // console.log("Skip reloadPalacePoints(): not WGS");
+      return;
+    }
+    if (!map) {
+      console.warn("Map not ready yet, skip reloadPalacePoints()");
+      return;
+    }
+
+    if (this.palace) {
+      map.removeLayer(this.palace);
+    }
+
+    const filteredFeatures = this.filterData();
+    this.renderPalaceLayer(filteredFeatures);
   }
 
   initStyleRadioWatcher() {
@@ -464,10 +569,10 @@ class LayerManager {
     const attr = feature.properties;
     const status = attr["Condition"];
     const marker = L.circleMarker(latlng, {
-      radius: 4.5,
+      radius: 2.1,
       fillOpacity: 0.9,
       opacity: 0.6,
-      weight: 2,
+      weight: 1,
       fillColor: status === "Still Standing" ? "#0077b6" : "#00b4d8",
       color: status === "Still Standing" ? "#f4f2f2ff" : "#ffffffff",
     });
@@ -559,147 +664,147 @@ class LayerManager {
     );
   }
 
-  loadCityPolygon() {
+  //暂时停止city polygon 展示
+  // loadCityPolygon() {
+  //   const map = this.getMap();
+  //   if (!map) return;
+  //   this.city = new L.GeoJSON.AJAX("assets/citylayer7.30.geojson", {
+  //     pane: "cityPane",
+  //     style: () => ({
+  //       color: "gray",
+  //       weight: 0,
+  //       opacity: 1,
+  //       fillOpacity: 0,
+  //     }),
+  //     onEachFeature: (feature, layer) => {
+  //       this.city_list.push({
+  //         name: feature.properties.city,
+  //         layer,
+  //         bounds: layer.getBounds(),
+  //       });
+
+  //       layer.on("mouseover", () => {
+  //         layer.setStyle({ weight: 1.3 });
+  //       });
+
+  //       layer.on("mouseout", () => {
+  //         layer.setStyle({ weight: 0 });
+  //       });
+  //     },
+  //   }).addTo(map);
+  // }
+
+  async loadEmpirePolygon() {
     const map = this.getMap();
     if (!map) return;
-    this.city = new L.GeoJSON.AJAX("assets/citylayer7.30.geojson", {
-      pane: "cityPane",
-      style: () => ({
-        color: "gray",
-        weight: 0,
-        opacity: 1,
-        fillOpacity: 0,
-      }),
-      onEachFeature: (feature, layer) => {
-        this.city_list.push({
-          name: feature.properties.city,
-          layer,
-          bounds: layer.getBounds(),
-        });
+    try {
+      const response = await fetch("assets/empire.geojson");
+      const data = await response.json();
+      this.empire = L.geoJSON(data, {
+        pane: "empirePane",
+        style: (feature) => {
+          const name = feature.properties.NAME;
+          let fillColor = "#ffffffff"; // 默认颜色（灰色）
 
-        layer.on("mouseover", () => {
-          layer.setStyle({ weight: 1.3 });
-        });
+          if (name === "French") {
+            fillColor = "#EAC170";
+          } else if (name === "British") {
+            fillColor = "#D5E2EC";
+          } else if (name === "Portugal") {
+            fillColor = "#EAC170";
+          }
 
-        layer.on("mouseout", () => {
-          layer.setStyle({ weight: 0 });
-        });
-      },
-    }).addTo(map);
-  }
-
-  loadEmpirePolygon() {
-    const map = this.getMap();
-    this.empire = new L.GeoJSON.AJAX("assets/empire.geojson", {
-      pane: "empirePane",
-      style: (feature) => {
-        const name = feature.properties.NAME;
-        let fillColor = "#ffffffff"; // 默认颜色（灰色）
-
-        if (name === "French") {
-          fillColor = "#81b29a";
-        } else if (name === "British") {
-          fillColor = "#c77dff";
-        } else if (name === "Portugal") {
-          fillColor = "#ff9b54";
-        }
-
-        return {
-          color: fillColor, // 边界线颜色
-          weight: 3, // 边界线宽度
-          // fillColor: fillColor, // 填充色
-          // fillOpacity: 0.4,
-          fill: false,
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const name = feature.properties.NAME;
-        // 绑定弹窗，显示 NAME
-        layer.bindPopup(`<b>${name}</b>`);
-      },
-      // onEachFeature: (feature, layer) => {
-      //   const name = feature.properties.NAME;
-      //   // 点击国家移动禁止
-      //   // if (country_array.includes(name)) {
-      //   //   layer.on("click", () => {
-      //   //     this.app.mapManager.setView(centroid[name], 5);
-      //   //   });
-      //   // }
-      // },
-    }).addTo(map);
-  }
-
-  loadWorldPolygon() {
-    const map = this.getMap();
-    if (!map) return;
-    const country_array = [
-      "Brazil",
-      "Burkina Faso",
-      "Cameroon",
-      "Ghana",
-      "Mali",
-      "Mozambique",
-      "Nigeria",
-      "Senegal",
-      "South Africa",
-      "United Kingdom",
-      "United States of America",
-    ];
-    const centroid = {
-      // prettier-ignore
-      "Brazil": [-7.535994, -72.340427],
-      // prettier-ignore
-      "Burkina Faso": [11.726473, -5.308822],
-      // prettier-ignore
-      "Cameroon": [5.810411, 9.631660],
-      // prettier-ignore
-      "Ghana": [7.678434, -2.749734],
-      // prettier-ignore
-      "Mali": [18.191814, -5.811439],
-      // prettier-ignore
-      "Mozambique": [-18.877222, 32.659506],
-      // prettier-ignore
-      "Nigeria": [9.039145, 2.763425],
-      // prettier-ignore
-      "Senegal": [14.781868, -17.375992],
-      // prettier-ignore
-      "South Africa": [-28.898819, 17.063372],
-      // prettier-ignore
-      "United Kingdom": [54.091472, -13.224016],
-      // prettier-ignore
-      "United States of America": [41.599380, -105.308336],
-    };
-    this.world = new L.GeoJSON.AJAX("assets/worldPolygon.geojson", {
-      pane: "worldPane",
-      style: (feature) => {
-        const name = feature.properties.NAME;
-        if (country_array.includes(name)) {
           return {
-            color: "#581204ff",
-            weight: 2,
-            fillColor: "rgba(255,255,255,0)",
-            fillOpacity: 0,
+            color: fillColor, // 边界线颜色
+            weight: 1.5, // 边界线宽度
+            opacity: 0.4,
+            // fillColor: fillColor, // 填充色
+            // fillOpacity: 0.4,
+            fill: false,
           };
-        }
-        return {
-          color: "white",
-          weight: 0.4,
-          fillColor: "gray",
-          fillOpacity: 0,
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const name = feature.properties.NAME;
-        this.country_list.push({ name, layer });
-        // 点击国家移动禁止
-        // if (country_array.includes(name)) {
-        //   layer.on("click", () => {
-        //     this.app.mapManager.setView(centroid[name], 5);
-        //   });
-        // }
-      },
-    }).addTo(map);
+        },
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties.NAME;
+          // 绑定弹窗，显示 NAME
+          layer.bindPopup(`<b>${name}</b>`);
+        },
+      }).addTo(map);
+    } catch (err) {
+      console.error("Failed to load empire polygon:", err);
+    }
   }
+
+  // loadWorldPolygon() {
+  //   const map = this.getMap();
+  //   if (!map) return;
+  //   const country_array = [
+  //     "Brazil",
+  //     "Burkina Faso",
+  //     "Cameroon",
+  //     "Ghana",
+  //     "Mali",
+  //     "Mozambique",
+  //     "Nigeria",
+  //     "Senegal",
+  //     "South Africa",
+  //     "United Kingdom",
+  //     "United States of America",
+  //   ];
+  //   const centroid = {
+  //     // prettier-ignore
+  //     "Brazil": [-7.535994, -72.340427],
+  //     // prettier-ignore
+  //     "Burkina Faso": [11.726473, -5.308822],
+  //     // prettier-ignore
+  //     "Cameroon": [5.810411, 9.631660],
+  //     // prettier-ignore
+  //     "Ghana": [7.678434, -2.749734],
+  //     // prettier-ignore
+  //     "Mali": [18.191814, -5.811439],
+  //     // prettier-ignore
+  //     "Mozambique": [-18.877222, 32.659506],
+  //     // prettier-ignore
+  //     "Nigeria": [9.039145, 2.763425],
+  //     // prettier-ignore
+  //     "Senegal": [14.781868, -17.375992],
+  //     // prettier-ignore
+  //     "South Africa": [-28.898819, 17.063372],
+  //     // prettier-ignore
+  //     "United Kingdom": [54.091472, -13.224016],
+  //     // prettier-ignore
+  //     "United States of America": [41.599380, -105.308336],
+  //   };
+  //   this.world = new L.GeoJSON.AJAX("assets/worldPolygon.geojson", {
+  //     pane: "worldPane",
+  //     style: (feature) => {
+  //       const name = feature.properties.NAME;
+  //       if (country_array.includes(name)) {
+  //         return {
+  //           color: "#581204ff",
+  //           weight: 2,
+  //           fillColor: "rgba(255,255,255,0)",
+  //           fillOpacity: 0,
+  //         };
+  //       }
+  //       return {
+  //         color: "white",
+  //         weight: 0.4,
+  //         fillColor: "gray",
+  //         fillOpacity: 0,
+  //       };
+  //     },
+  //     onEachFeature: (feature, layer) => {
+  //       const name = feature.properties.NAME;
+  //       this.country_list.push({ name, layer });
+  //       // 点击国家移动禁止
+  //       // if (country_array.includes(name)) {
+  //       //   layer.on("click", () => {
+  //       //     this.app.mapManager.setView(centroid[name], 5);
+  //       //   });
+  //       // }
+  //     },
+  //   }).addTo(map);
+  // }
 }
 
 class UIManager {
@@ -905,6 +1010,91 @@ class UIManager {
       });
   }
 
+  initFilterEvents() {
+    const ids = [
+      "filter-country",
+      "filter-city",
+      "filter-condition",
+      "filter-typology",
+    ];
+
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("change", () => {
+          this.app.layerManager.reloadPalacePoints();
+        });
+      }
+    });
+
+    const cleanBtn = document.getElementById("btn-clean-filter");
+    if (cleanBtn) {
+      cleanBtn.addEventListener("click", () => {
+        this.resetFilter();
+        this.app.layerManager.reloadPalacePoints();
+      });
+    }
+  }
+
+  resetFilter() {
+    const ids = [
+      "filter-country",
+      "filter-city",
+      "filter-condition",
+      "filter-typology",
+    ];
+
+    ids.forEach((id) => {
+      const sel = document.getElementById(id);
+      if (sel) sel.selectedIndex = 0;
+    });
+  }
+
+  populateDropdowns(geojson) {
+    const features = geojson.features;
+
+    const unique = (field) => {
+      const values = features.flatMap((f) => {
+        const v = f.properties[field];
+        if (Array.isArray(v)) return v.filter(Boolean);
+        return v ? [v] : [];
+      });
+
+      const cleaned = [...new Set(values)].sort();
+      // console.log(`Unique ${field}:`, cleaned);
+      return cleaned;
+    };
+
+    const countries = unique("Country");
+    const cities = unique("City");
+    const conditions = unique("Condition");
+    const typologies = unique("Typology");
+
+    fill("filter-country", countries);
+    fill("filter-city", cities);
+    fill("filter-condition", conditions);
+    fill("filter-typology", typologies);
+
+    function fill(id, items) {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+
+      sel.innerHTML =
+        `
+      <option value="" disabled selected>${id.replace("filter-", "")}</option>
+    ` + items.map((i) => `<option value="${i}">${i}</option>`).join("");
+    }
+  }
+
+  getUIFilters() {
+    return {
+      country: document.getElementById("filter-country")?.value || "all",
+      city: document.getElementById("filter-city")?.value || "all",
+      condition: document.getElementById("filter-condition")?.value || "all",
+      typology: document.getElementById("filter-typology")?.value || "all",
+    };
+  }
+
   backtoocean() {
     const el = document.querySelector("#back");
     if (!el) return;
@@ -924,7 +1114,7 @@ class SearchManager {
     this.poliLayer = null;
     this.searchControl = null;
 
-    window.addEventListener("projectionchange", (e) => {
+    window.addEventListener("projectionready", (e) => {
       const mode = e.detail.projection;
       if (mode === "wgs") this.initSearchBar();
       else this.removeSearchBar();
@@ -946,10 +1136,13 @@ class SearchManager {
     const map = this.getMap();
     if (!map) return;
     this.removeSearchBar();
-    this.poliLayer = L.featureGroup([
-      this.app.layerManager.city,
-      this.app.layerManager.world,
-    ]);
+    const layers = [
+      this.app.layerManager.empire,
+      // this.app.layerManager.city,
+      // this.app.layerManager.world,
+    ].filter(Boolean);
+
+    this.poliLayer = L.featureGroup(layers);
 
     this.searchControl = new L.Control.Search({
       layer: this.poliLayer,
@@ -973,7 +1166,7 @@ class EventManager {
     this.layersControl = null;
     this.zoomControl = null;
 
-    window.addEventListener("projectionchange", (e) => {
+    window.addEventListener("projectionready", (e) => {
       const mode = e.detail.projection;
       this.rebindForProjection(mode);
     });
@@ -1022,7 +1215,12 @@ class EventManager {
       "Country Boundary": this.app.layerManager.world,
       "Empire Boundary": this.app.layerManager.empire,
     };
-    this.layersControl = L.control.layers(baseLayers, overLays).addTo(map);
+    const sanitizedOverlays = Object.fromEntries(
+      Object.entries(overLays).filter(([k, v]) => v)
+    );
+    this.layersControl = L.control
+      .layers(baseLayers, sanitizedOverlays)
+      .addTo(map);
   }
 
   attachZoomHandler() {
@@ -1059,13 +1257,76 @@ class EventManager {
   }
 }
 
-// class ChartDataProcess {
-//   constructor() {
-//     this.app = app;
-//     this.allData = [];
-//   }
-// }
+class TimelineManager {
+  constructor(app) {
+    this.app = app;
+    this.year = null;
+    this.geojsondata = null;
+    this.filtered = null;
 
+    // Bind methods so event listeners keep correct "this"
+    this.initTimelineUI = this.initTimelineUI.bind(this);
+    this.removeTimelineUI = this.removeTimelineUI.bind(this);
+    this.onYearChange = this.onYearChange.bind(this);
+  }
+
+  getMap() {
+    return this.app.mapManager.getActiveMap();
+  }
+
+  initTimelineUI() {
+    document.getElementById("time-control").style.display = "flex";
+    const slider = document.getElementById("timeSlider");
+    const yearDisplay = document.getElementById("year-display");
+
+    if (!slider || !yearDisplay) {
+      console.warn("Timeline UI elements not found!");
+      return;
+    }
+    this.boundOnYearChange = this.onYearChange.bind(this);
+    slider.addEventListener("input", this.boundOnYearChange);
+
+    // default: all
+    slider.value = 2026;
+    this.year = null;
+    yearDisplay.textContent = "Year: All";
+  }
+
+  removeTimelineUI() {
+    document.getElementById("time-control").style.display = "none";
+
+    // remove slider listerner if exists
+    const slider = document.getElementById("timeSlider");
+    if (slider && this.boundOnYearChange) {
+      slider.removeEventListener("input", this.boundOnYearChange);
+    }
+    this.year = null;
+  }
+
+  // When user moves slider
+  onYearChange(e) {
+    const value = Number(e.target.value);
+    // update ui
+    const yearDisplay = document.getElementById("year-display");
+
+    // special case: value = 2026 is all years
+    if (value === 2026) {
+      this.year = "all";
+      yearDisplay.textContent = "Year: All";
+    } else {
+      this.year = value;
+      yearDisplay.textContent = `Year: ${value}`;
+    }
+    // inform layermanager
+    this.app.layerManager.reloadPalacePoints();
+  }
+
+  getTimeFilters() {
+    return {
+      yearChoose: this.year ? this.year : "all",
+    };
+  }
+}
 // test the script
 const app = new WebMapApp();
 app.initialize();
